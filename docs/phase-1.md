@@ -157,7 +157,7 @@ README ต้องอธิบาย:
 ## 8. นอกขอบเขต
 
 - Production provisioning/deployment/migrations
-- ระบบบัญชีและ identity provider จริง
+- ระบบบัญชีและ LINE Login จริง (กำหนดทำใน Phase 2; Phase 1 ยังไม่เชื่อม LINE)
 - Booking/matching/payment/chat/live tracking เต็มระบบ
 - เอกสารส่วนตัวและข้อมูลผู้ใช้จริง
 - การยืนยันความพร้อมเปิดใช้กับบุคคลทั่วไป
@@ -165,3 +165,7 @@ README ต้องอธิบาย:
 ## 9. รูปแบบส่งมอบ
 
 สรุปเป็นภาษาไทย: สิ่งที่ทำ, ไฟล์สำคัญ, วิธีรัน, ตารางผล checks, PostgreSQL/PostGIS versions, connectivity ที่พิสูจน์ได้จริง, ข้อจำกัด และงานถัดไป เก็บผลใน PR/รายงาน verification ที่มีอยู่จริง โดยไม่แต่งผลล่วงหน้า
+
+## 10. ข้อเลือกสำหรับ Phase 2
+
+เจ้าของโครงการเลือก LINE Login เป็นช่องทางหลักแล้ว วางขอบเขตตามหัวข้อ LINE Login ใน architecture.md ไม่เพิ่ม authentication endpoints หรือ LINE secrets จริงใน Phase 1 และเลื่อน WeChat ไปภายหลัง
