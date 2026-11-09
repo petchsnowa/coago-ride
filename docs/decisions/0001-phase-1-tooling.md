@@ -9,3 +9,5 @@ Schema มีเพียง system_metadata และ PostGIS extension; กา
 Remote Hyperdrive และ database provider ยังไม่สร้างหรือทดสอบใน Phase 1 จึงไม่ใส่ binding ID สมมติใน config
 
 ตรึง Wrangler 4.110.0 และ Miniflare 4.20260708.1 พร้อม compatibility_date 2026-07-08 ให้ใช้ workerd รุ่นเดียวกัน หลัง Wrangler 4.158.0 ที่ดึง Miniflare 5 beta เริ่ม local server ค้าง การเลือกวันที่นี้เป็น compatibility baseline ที่ทดสอบ ไม่ใช่วันที่ปัจจุบัน
+
+กำหนด dependency overrides สำหรับช่องโหว่ใน dev tooling: miniflare>sharp 0.35.5, miniflare>undici 7.30.1, @esbuild-kit/core-utils>esbuild 0.25.12 และ minimatch@10 เป็น 11.0.1 ตรวจ audit และทดสอบ tooling ที่เกี่ยวข้องซ้ำแล้ว ไม่ override minimatch รุ่นเก่าทุก major เพราะ API อาจต่างกัน เพิ่ม pnpm audit เป็น CI gate ระดับ high

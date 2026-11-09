@@ -23,6 +23,8 @@ export default ts.config(
             "@coago/db",
             "@coago/db/*",
             "**/packages/db/**",
+            "**/db/**",
+            "**/api/**",
             "**/apps/api/**",
             "node:*",
             "pg",

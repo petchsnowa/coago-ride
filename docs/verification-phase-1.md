@@ -13,6 +13,7 @@ LINE Login, booking และ schema ธุรกิจยังเป็น Pha
 | Check | ผลและหลักฐาน |
 | --- | --- |
 | Frozen lockfile install | ผ่าน pnpm install --frozen-lockfile |
+| Dependency audit | ผ่าน pnpm audit: ไม่พบ known vulnerabilities หลัง overrides ที่ทดสอบแล้ว |
 | Peer dependencies | ผ่าน pnpm peers check; ไม่มี peer mismatch |
 | Lint | ผ่าน pnpm lint |
 | TypeScript | ผ่าน pnpm typecheck ทั้ง browser/tooling และ Workers configs |
@@ -29,7 +30,7 @@ LINE Login, booking และ schema ธุรกิจยังเป็น Pha
 | Browser ถึงฐานข้อมูลจริง | ผ่านการทดลองเพิ่มเติม: Chromium → Vite proxy → Wrangler dev → PostgreSQL/PostGIS; แสดงพร้อมใช้งานหลังคลิก |
 | Screenshot inspection | ตรวจ desktop และ mobile layout; ไม่มี horizontal overflow ใน automated assertions |
 | Git whitespace | ผ่าน git diff --check |
-| GitHub Actions | เพิ่ม workflow แล้ว; ผลบน GitHub ให้ดู Actions/PR checks แยกจากผล local ในตารางนี้ |
+| GitHub Actions | รอบแรกผ่านครบ [run 42567746728](https://github.com/petchsnowa/coago-ride/actions/runs/42567746728) ก่อนอัปเดต dependency overrides; ผล commit ล่าสุดดู checks ของ PR |
 | Remote Workers/Hyperdrive | ไม่ได้รัน: ยังไม่มี remote resources/configuration; ไม่สรุปว่าผ่านจาก local |
 | Production | ไม่ได้ deploy/provision/migrate ตามขอบเขต |
 
@@ -65,3 +66,5 @@ LINE Login, booking และ schema ธุรกิจยังเป็น Pha
 3. ยังไม่มี LINE channel/secrets/session implementation
 4. Test database เป็น disposable tmpfs; ห้ามใช้เก็บข้อมูลจริง
 5. CI workflow ไม่เท่ากับหลักฐานว่า GitHub Actions ผ่าน ต้องดูผล run ของ commit นั้นจริง
+
+การปรับ dependency รอบสุดท้าย: ใช้ overrides เฉพาะ sharp/undici ของ Miniflare, esbuild ของ @esbuild-kit/core-utils และ minimatch รุ่น 10 ที่ใช้ใน lint tooling เพื่อตัด known advisories ทดสอบ lint, typecheck, unit/UI/API, migration generation, DB integration, build, Workers connectivity และ browser ซ้ำแล้วผ่านทั้งหมด Audit เป็นผลตามฐานข้อมูล advisory ขณะตรวจ ไม่ใช่การรับประกันความปลอดภัยทั้งหมด

@@ -34,6 +34,7 @@ Credentials ใน Compose และไฟล์ตัวอย่างเป�
 ## Checks
 
 ```sh
+pnpm audit
 pnpm lint
 pnpm typecheck
 pnpm test

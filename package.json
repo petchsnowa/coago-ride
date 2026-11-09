@@ -16,7 +16,8 @@
     "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
     "test:integration": "tsx --env-file-if-exists=.env scripts/integration.ts",
     "test:workers": "tsx --env-file-if-exists=.env scripts/workers.ts",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "audit": "pnpm audit --audit-level high"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261108.1",
