@@ -155,3 +155,64 @@ footer {
     font-size: 20px;
   }
 }
+.account {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  background: #e5eedf;
+  border: 1px solid #cddcc5;
+  border-radius: 24px;
+  padding: 32px;
+  margin: 16px 0 32px;
+}
+.account p {
+  font-size: 14px;
+  color: #49604c;
+}
+.account-actions {
+  align-self: center;
+  min-width: 250px;
+  max-width: 350px;
+}
+.line-login {
+  display: block;
+  background: #06c755;
+  color: #fff;
+  text-align: center;
+  font-weight: 600;
+  padding: 15px 22px;
+  border-radius: 12px;
+  text-decoration: none;
+}
+.line-login:hover {
+  background: #05ad49;
+}
+.line-login:focus-visible {
+  outline: 3px solid #164d3a;
+  outline-offset: 4px;
+}
+.account .welcome {
+  font-weight: 600;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+.secondary {
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid #386849;
+  color: #174f3e;
+}
+.account [role="alert"] {
+  color: #914126;
+}
+@media (max-width: 650px) {
+  .account {
+    flex-direction: column;
+    padding: 24px;
+  }
+  .account-actions {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+}

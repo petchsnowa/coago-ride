@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { readySchema } from "@coago/contracts";
+import AuthPanel from "./AuthPanel";
 export default function App() {
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",
@@ -54,11 +55,12 @@ export default function App() {
           <span>จุดหมายเดียวกัน</span>
         </div>
       </section>
+      <AuthPanel />
       <section className="system" aria-labelledby="system-title">
         <div>
           <p className="eyebrow">เริ่มต้นไปด้วยกัน</p>
           <h2 id="system-title">เรากำลังเตรียม COAGO ให้พร้อม</h2>
-          <p>ระยะที่ 1: วางฐานระบบ ยังไม่เปิดรับจองหรือเข้าสู่ระบบ</p>
+          <p>ระยะที่ 2: ทดสอบการเข้าสู่ระบบ ยังไม่เปิดรับจอง</p>
         </div>
         <div className="check">
           <button onClick={check} disabled={status === "loading"}>

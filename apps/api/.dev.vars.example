@@ -1,2 +1,8 @@
 # Local test credentials only; never use for production.
 DATABASE_URL=postgresql://coago_test:coago_test@127.0.0.1:54329/coago_test
+
+# Local optional LINE configuration. Keep the real secret out of Git.
+APP_ORIGIN=http://localhost:5173
+LINE_CHANNEL_ID=your_test_channel_id
+LINE_CHANNEL_SECRET=your_test_channel_secret
+LINE_CALLBACK_URL=http://localhost:5173/api/auth/line/callback

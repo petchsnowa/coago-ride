@@ -3,6 +3,11 @@ test("home and readiness interaction", async ({ page }) => {
   await page.route("**/health/ready", (route) =>
     route.fulfill({ json: { status: "ready" } }),
   );
+  await page.route("**/api/auth/me", (route) =>
+    route.fulfill({
+      json: { user: null, csrfToken: null, loginAvailable: true },
+    }),
+  );
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "ต่างจังหวัด",

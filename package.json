@@ -17,7 +17,9 @@
     "test:integration": "tsx --env-file-if-exists=.env scripts/integration.ts",
     "test:workers": "tsx --env-file-if-exists=.env scripts/workers.ts",
     "test:browser": "playwright test",
-    "audit": "pnpm audit --audit-level high"
+    "audit": "pnpm audit --audit-level high",
+    "test:auth:integration": "tsx --env-file-if-exists=.env scripts/auth-integration.ts",
+    "test:auth:workers": "tsx --env-file-if-exists=.env scripts/auth-workers.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261108.1",

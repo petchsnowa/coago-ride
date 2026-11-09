@@ -23,7 +23,19 @@ it("shows loading, failure and successful retry", async () => {
         }),
     )
     .mockResolvedValueOnce(new Response(JSON.stringify({ status: "ready" })));
-  vi.stubGlobal("fetch", fetch);
+  vi.stubGlobal("fetch", (url: string, init: RequestInit) =>
+    url.includes("/api/auth/me")
+      ? Promise.resolve(
+          new Response(
+            JSON.stringify({
+              user: null,
+              csrfToken: null,
+              loginAvailable: false,
+            }),
+          ),
+        )
+      : fetch(url, init),
+  );
   render(<App />);
   fireEvent.click(screen.getByRole("button"));
   expect(screen.getByRole("button")).toBeDisabled();
@@ -38,14 +50,22 @@ it("shows loading, failure and successful retry", async () => {
 });
 it("times out and re-enables retry", async () => {
   vi.useFakeTimers();
-  vi.stubGlobal(
-    "fetch",
-    (_url: unknown, init: RequestInit) =>
-      new Promise((_r, reject) =>
-        init.signal?.addEventListener("abort", () =>
-          reject(new Error("aborted")),
+  vi.stubGlobal("fetch", (_url: unknown, init: RequestInit) =>
+    String(_url).includes("/api/auth/me")
+      ? Promise.resolve(
+          new Response(
+            JSON.stringify({
+              user: null,
+              csrfToken: null,
+              loginAvailable: false,
+            }),
+          ),
+        )
+      : new Promise((_r, reject) =>
+          init.signal?.addEventListener("abort", () =>
+            reject(new Error("aborted")),
+          ),
         ),
-      ),
   );
   render(<App />);
   fireEvent.click(screen.getByRole("button"));

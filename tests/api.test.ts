@@ -97,3 +97,20 @@ it("prefers Hyperdrive binding", async () => {
   );
   expect(check).toHaveBeenCalledWith("hyperdrive");
 });
+
+it("serves static assets while preserving API and health 404s", async () => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValue(
+      new Response("<html>COAGO</html>", {
+        headers: { "Content-Type": "text/html" },
+      }),
+    );
+  const app = createApp();
+  expect((await app.request("/", {}, { ASSETS: { fetch } })).status).toBe(200);
+  for (const path of ["/api", "/api/unknown", "/health/unknown"])
+    expect((await app.request(path, {}, { ASSETS: { fetch } })).status).toBe(
+      404,
+    );
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
