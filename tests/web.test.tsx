@@ -1,0 +1,56 @@
+import React from "react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
+import App from "../apps/web/src/App";
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
+it("shows loading, failure and successful retry", async () => {
+  let resolve!: (r: Response) => void;
+  const fetch = vi
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise<Response>((r) => {
+          resolve = r;
+        }),
+    )
+    .mockResolvedValueOnce(new Response(JSON.stringify({ status: "ready" })));
+  vi.stubGlobal("fetch", fetch);
+  render(<App />);
+  fireEvent.click(screen.getByRole("button"));
+  expect(screen.getByRole("button")).toBeDisabled();
+  resolve(
+    new Response(JSON.stringify({ status: "unavailable" }), { status: 503 }),
+  );
+  await screen.findByRole("button", { name: "ลองอีกครั้ง" });
+  fireEvent.click(screen.getByRole("button"));
+  await waitFor(() =>
+    expect(screen.getByRole("status")).toHaveTextContent("ระบบพร้อม"),
+  );
+});
+it("times out and re-enables retry", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal(
+    "fetch",
+    (_url: unknown, init: RequestInit) =>
+      new Promise((_r, reject) =>
+        init.signal?.addEventListener("abort", () =>
+          reject(new Error("aborted")),
+        ),
+      ),
+  );
+  render(<App />);
+  fireEvent.click(screen.getByRole("button"));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(8000);
+  });
+  expect(screen.getByRole("button", { name: "ลองอีกครั้ง" })).toBeEnabled();
+});

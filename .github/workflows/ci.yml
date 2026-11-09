@@ -1,0 +1,44 @@
+name: Phase 1 checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://coago_test:coago_test@127.0.0.1:54329/coago_test
+      WRANGLER_SEND_METRICS: "false"
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5-alpine
+        env:
+          POSTGRES_USER: coago_test
+          POSTGRES_PASSWORD: coago_test
+          POSTGRES_DB: coago_test
+        ports: ["54329:5432"]
+        options: >-
+          --health-cmd "pg_isready -U coago_test -d coago_test"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: |
+          pnpm db:generate
+          test -z "$(git status --porcelain -- packages/db/migrations)"
+      - run: pnpm db:migrate
+      - run: pnpm db:migrate
+      - run: pnpm test:integration
+      - run: pnpm test:workers
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:browser

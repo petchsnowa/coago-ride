@@ -1,0 +1,9 @@
+{
+  "extends": "./packages/config/base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node", "vite/client", "vitest/globals"]
+  },
+  "include": ["apps/web", "packages", "scripts", "tests", "*.ts"]
+}

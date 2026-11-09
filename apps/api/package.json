@@ -1,0 +1,14 @@
+{
+  "name": "@coago/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --ip 0.0.0.0",
+    "build": "wrangler deploy --dry-run --outdir dist"
+  },
+  "dependencies": {
+    "@coago/contracts": "workspace:*",
+    "@coago/db": "workspace:*",
+    "hono": "4.13.17"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "name": "coago",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24.22.1 <25"
+  },
+  "scripts": {
+    "dev": "concurrently -k \"pnpm --filter @coago/api dev\" \"pnpm --filter @coago/web dev\"",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/api/tsconfig.json",
+    "test": "vitest run",
+    "build": "pnpm --filter @coago/web build && pnpm --filter @coago/api build",
+    "db:generate": "pnpm --filter @coago/db generate",
+    "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
+    "test:integration": "tsx --env-file-if-exists=.env scripts/integration.ts",
+    "test:workers": "tsx --env-file-if-exists=.env scripts/workers.ts",
+    "test:browser": "playwright test",
+    "audit": "pnpm audit --audit-level high"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261108.1",
+    "@coago/contracts": "workspace:*",
+    "@coago/db": "workspace:*",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.65.0",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.2.1",
+    "concurrently": "10.0.7",
+    "drizzle-kit": "0.31.11",
+    "drizzle-orm": "0.45.4",
+    "eslint": "10.14.0",
+    "jsdom": "31.0.0",
+    "miniflare": "4.20260708.1",
+    "pg": "8.23.1",
+    "prettier": "3.9.10",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "8.3.6",
+    "vitest": "5.1.0",
+    "wrangler": "4.110.0"
+  }
+}
