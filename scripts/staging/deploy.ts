@@ -218,11 +218,14 @@ async function main() {
       await new Promise((r) => setTimeout(r, 5000));
     }
     assert(healthy, "STAGING_READINESS_FAILED");
+    console.log("STAGING_READINESS_OK");
     const me = await fetch(`${appURL}/api/auth/me`, {
       signal: AbortSignal.timeout(10000),
     });
-    assert(me.ok);
-    assert.deepEqual(await me.json(), {
+    assert(me.ok, `STAGING_ME_HTTP_${me.status}`);
+    const anonymous = await me.json();
+    console.log("STAGING_ANONYMOUS_STATE", JSON.stringify(anonymous));
+    assert.deepEqual(anonymous, {
       user: null,
       csrfToken: null,
       loginAvailable: true,
@@ -231,16 +234,38 @@ async function main() {
       redirect: "manual",
       signal: AbortSignal.timeout(10000),
     });
-    assert.equal(start.status, 302);
+    assert.equal(start.status, 302, `STAGING_START_HTTP_${start.status}`);
     const location = new URL(start.headers.get("location")!);
-    assert.equal(location.origin, "https://access.line.me");
-    assert.equal(location.searchParams.get("client_id"), channel);
-    assert.equal(location.searchParams.get("redirect_uri"), callback);
-    assert.equal(location.searchParams.get("code_challenge_method"), "S256");
-    assert(start.headers.get("set-cookie")?.includes("HttpOnly"));
+    assert.equal(
+      location.origin,
+      "https://access.line.me",
+      "STAGING_LINE_ORIGIN_INVALID",
+    );
+    assert.equal(
+      location.searchParams.get("client_id"),
+      channel,
+      "STAGING_LINE_CHANNEL_INVALID",
+    );
+    assert.equal(
+      location.searchParams.get("redirect_uri"),
+      callback,
+      "STAGING_LINE_CALLBACK_INVALID",
+    );
+    assert.equal(
+      location.searchParams.get("code_challenge_method"),
+      "S256",
+      "STAGING_PKCE_INVALID",
+    );
+    assert(
+      start.headers.get("set-cookie")?.includes("HttpOnly"),
+      "STAGING_COOKIE_INVALID",
+    );
     const page = await fetch(appURL, { signal: AbortSignal.timeout(10000) });
-    assert(page.ok);
-    assert((await page.text()).includes("COAGO"));
+    assert(page.ok, `STAGING_ASSETS_HTTP_${page.status}`);
+    assert(
+      (await page.text()).includes("COAGO"),
+      "STAGING_ASSETS_CONTENT_INVALID",
+    );
     console.log(`STAGING_READY ${appURL}`);
     console.log(`LINE_CALLBACK_URL ${callback}`);
     console.log(
