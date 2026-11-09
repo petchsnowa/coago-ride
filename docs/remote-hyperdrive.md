@@ -40,3 +40,33 @@ Actions ต้องมี `REMOTE_HYPERDRIVE_PASS` พร้อม transport=hy
 - Neon project ที่ตั้งใหม่อาจเป็น PostgreSQL 18 / PostGIS 3.6 ซึ่งต่างจาก local baseline 17 / 3.5 ให้รายงานเวอร์ชันที่อ่านจริง ไม่อนุมานจาก local
 - Neon branch coago-test ตั้งลบอัตโนมัติ 7 วัน การทดสอบหลังหมดอายุต้องตั้งฐานทดสอบและเปลี่ยน secret ใหม่
 - หาก GitHub runner ถูกตัดกลางงานจน cleanup ไม่รัน ให้ตรวจ Cloudflare Hyperdrive ด้วยชื่อ run เฉพาะ ห้ามลบ resources อื่น
+
+## ผลทดสอบ remote จริง — 9 พฤศจิกายน 2026
+
+**ผ่าน** บน [GitHub Actions run 42574188528](https://github.com/petchsnowa/coago-ride/actions/runs/42574188528) สำหรับ commit `9c032e5683c5d0943d1ef8e8062b0c7b3644844a`.
+
+เส้นทาง: GitHub runner → Cloudflare Workers remote preview → actual HYPERDRIVE binding → Neon Direct test database
+
+| สิ่งที่ตรวจ | ผล |
+| --- | --- |
+| Token และ Account configuration | ผ่าน ใช้จาก GitHub Secrets/Variables โดยไม่เปิดเผยค่า |
+| Temporary Hyperdrive creation | ผ่าน ปิด query caching |
+| Probe authentication | ผ่าน คำขอไม่มี probe token ได้ 404 |
+| Actual Hono readiness | HTTP 200 |
+| PostgreSQL version | 18.6 (ac70818) |
+| PostGIS version | 3.6.4 |
+| Spatial point | POINT(100.5018 13.7563) |
+| Spatial SRID | 4326 |
+| Preview shutdown | ผ่าน |
+| Hyperdrive cleanup | ลบ 1 config และตรวจว่าไม่มีชื่อ resource ของ run นี้เหลือ |
+
+หลักฐาน log ที่ปลอดภัย:
+
+```text
+REMOTE_HYPERDRIVE_PASS {"transport":"hyperdrive","readiness":200,"postgres":"18.6 (ac70818)","postgis":"3.6.4","point":"POINT(100.5018 13.7563)","srid":4326}
+CLEANUP_OK: 1 temporary Hyperdrive configurations removed
+```
+
+ไม่รัน migrations ไม่แก้ schema/data บน Neon ไม่สร้าง production Worker/route และไม่เปลี่ยน DNS ของเว็บเดิม ฐาน Neon coago-test และ GitHub Secrets ยังคงอยู่ตามที่เจ้าของตั้งไว้ (branch มี auto-delete 7 วัน)
+
+การทดสอบนี้ยืนยัน driver/API/spatial read connectivity ผ่าน remote Hyperdrive จริง ไม่ครอบคลุม load testing, booking transactions หรือ LINE Login.

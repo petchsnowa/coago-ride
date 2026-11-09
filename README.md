@@ -11,6 +11,7 @@
 - [Architecture](docs/architecture.md)
 - [ขอบเขต Phase 1](docs/phase-1.md)
 - [ผลตรวจจริง](docs/verification-phase-1.md)
+- [ผล remote Hyperdrive และวิธีทดสอบ](docs/remote-hyperdrive.md)
 
 ## เตรียมเครื่อง
 

@@ -1,6 +1,6 @@
 # COAGO Phase 1 — ผลตรวจ
 
-ทดสอบวันที่ 9 พฤศจิกายน 2026 ใน managed Linux development environment ไม่มีการ deploy production และยังไม่มี remote Hyperdrive resource
+ทดสอบวันที่ 9 พฤศจิกายน 2026 ใน managed Linux development environment ไม่มีการ deploy production; ต่อมาทดสอบ remote Hyperdrive สำเร็จและลบ resource ทดสอบแล้ว ดูผลแยกใน [remote-hyperdrive.md](remote-hyperdrive.md)
 
 ## สิ่งที่สร้าง
 
@@ -31,7 +31,7 @@ LINE Login, booking และ schema ธุรกิจยังเป็น Pha
 | Screenshot inspection | ตรวจ desktop และ mobile layout; ไม่มี horizontal overflow ใน automated assertions |
 | Git whitespace | ผ่าน git diff --check |
 | GitHub Actions | รอบแรกผ่านครบ [run 42567746728](https://github.com/petchsnowa/coago-ride/actions/runs/42567746728) ก่อนอัปเดต dependency overrides; ผล commit ล่าสุดดู checks ของ PR |
-| Remote Workers/Hyperdrive | ไม่ได้รัน: ยังไม่มี remote resources/configuration; ไม่สรุปว่าผ่านจาก local |
+| Remote Workers/Hyperdrive | ผ่านในงานต่อเนื่อง: Workers remote preview → Hyperdrive → Neon PostgreSQL 18.6 / PostGIS 3.6.4; [run 42574188528](https://github.com/petchsnowa/coago-ride/actions/runs/42574188528); ลบ temporary config แล้ว |
 | Production | ไม่ได้ deploy/provision/migrate ตามขอบเขต |
 
 ## รุ่นที่ตรวจจริง
@@ -61,7 +61,7 @@ LINE Login, booking และ schema ธุรกิจยังเป็น Pha
 
 ## ข้อจำกัดและงานถัดไป
 
-1. ยังไม่พิสูจน์ remote network/TLS/Hyperdrive/provider permissions ต้องทดสอบกับ staging ที่ได้รับอนุญาตในงานถัดไป
+1. Remote connectivity ผ่านแล้วบน Neon test branch ตาม remote-hyperdrive.md; ยังไม่ทดสอบ load หรือการตั้งค่า production
 2. Schema มีเพียง infrastructure metadata และ PostGIS extension ยังไม่มี booking, identity หรือข้อมูลส่วนตัวจริง
 3. ยังไม่มี LINE channel/secrets/session implementation
 4. Test database เป็น disposable tmpfs; ห้ามใช้เก็บข้อมูลจริง
