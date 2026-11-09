@@ -13,6 +13,7 @@
 - [ผลตรวจจริง](docs/verification-phase-1.md)
 - [ผล remote Hyperdrive และวิธีทดสอบ](docs/remote-hyperdrive.md)
 - [ขอบเขต LINE Login และการทดสอบ](docs/phase-2-line-login.md)
+- [ผลตรวจและ URL ทดสอบ LINE Login](docs/verification-line-login.md)
 
 ## เตรียมเครื่อง
 
