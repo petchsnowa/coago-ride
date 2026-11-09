@@ -1,0 +1,7 @@
+{
+  "name": "@coago/config",
+  "private": true,
+  "exports": {
+    "./base.json": "./base.json"
+  }
+}

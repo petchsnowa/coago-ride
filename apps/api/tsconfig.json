@@ -1,0 +1,8 @@
+{
+  "extends": "../../packages/config/base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types", "node"]
+  },
+  "include": ["src", "../../packages/db/src", "../../packages/contracts/src"]
+}

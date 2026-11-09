@@ -1,0 +1,2 @@
+# Local test credentials only; never use for production.
+DATABASE_URL=postgresql://coago_test:coago_test@127.0.0.1:54329/coago_test
