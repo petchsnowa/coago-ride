@@ -156,6 +156,19 @@ CI รัน frozen-lockfile install, lint, typecheck, unit/UI/API tests, fronte
 
 ## 11. งานหลัง Phase 1
 
-เลือก auth และ provider, กำหนดสิทธิ์/ข้อมูลส่วนตัว, จำนวนที่นั่งต่อคำขอ และ cancellation policy ก่อน Phase 2 การตอบรับคำขอในอนาคตต้องทำใน transaction ด้วย row locking หรือ conditional updates พร้อมทดสอบ concurrent requests และ idempotent cancellation
+ใช้ LINE Login เป็น auth หลักใน Phase 2 ตามคำตัดสินของเจ้าของโครงการ เลือก database provider, กำหนดสิทธิ์/ข้อมูลส่วนตัว, จำนวนที่นั่งต่อคำขอ และ cancellation policy ก่อน Phase 2 การตอบรับคำขอในอนาคตต้องทำใน transaction ด้วย row locking หรือ conditional updates พร้อมทดสอบ concurrent requests และ idempotent cancellation
 
 เอกสารนี้ไม่ยืนยันความพร้อมเปิดให้บุคคลทั่วไปใช้งาน ผลตรวจจริงต้องอยู่ในรายงาน implementation
+
+## 12. LINE Login — ข้อเลือกสำหรับ Phase 2
+
+- ใช้ LINE Login บนเว็บไซต์เป็นช่องทางหลัก ยังไม่เพิ่ม WeChat และไม่ถือว่า LIFF จำเป็นสำหรับการ login บนเว็บไซต์ การเพิ่ม LIFF ให้พิจารณาแยกเมื่อมีความต้องการเปิดแอปภายใน LINE
+- ใช้ authorization code flow ตามเอกสาร LINE ปัจจุบัน ตรวจ state, nonce และ token claims ตาม flow ที่ใช้ โดยตรวจ ID token ฝั่ง API ผ่านวิธีที่ LINE รองรับ ห้ามเชื่อข้อมูลโปรไฟล์หรือ user ID ที่ frontend ส่งมาเพียงอย่างเดียว
+- จัดเก็บ external identity แยกจากบัญชี COAGO ใช้ provider และ provider user ID ที่ตรวจสอบแล้วเป็น unique identity ไม่ใช้ display name เป็นตัวระบุ
+- สร้าง COAGO session หลังยืนยัน LINE สำเร็จ ใช้ cookies แบบ HttpOnly, Secure ใน HTTPS และ SameSite ที่เหมาะสมกับ flow พร้อม expiry/logout และ CSRF protection ตามรูปแบบ deployment
+- เก็บ LINE channel secret ที่ server เท่านั้น ใช้ตัวแปรตัวอย่าง LINE_CHANNEL_ID, LINE_CHANNEL_SECRET และ LINE_CALLBACK_URL เฉพาะเมื่อเริ่ม implementation จริง ห้ามใส่ค่าจริงใน Git
+- ตั้ง callback URLs ให้ตรง development/staging/production ตาม LINE Developers ที่ใช้จริง ไม่สร้าง LINE channel หรือ production resources โดยอัตโนมัติ
+- ทดสอบ callback success, denied consent, invalid/replayed state, invalid/expired token และ logout ไม่ให้สร้างบัญชีหรือ session จากข้อมูลที่ไม่ผ่านตรวจ
+- LINE Login ไม่ยืนยันเอกสารบุคคลหรือใบขับขี่ หากเพิ่ม provider ภายหลัง การเชื่อมบัญชีต้องยืนยันสิทธิ์ทั้งสองฝั่ง ห้ามรวมบัญชีอัตโนมัติจากชื่อ/รูป/อีเมลที่เหมือนกัน
+
+การปรับเอกสารนี้ยังไม่ใช่การสร้าง LINE channel, ตั้ง secrets หรือเชื่อมต่อ LINE สำเร็จ
