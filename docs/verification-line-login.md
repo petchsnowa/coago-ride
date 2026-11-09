@@ -28,8 +28,8 @@
 | Staging Hyperdrive readiness | HTTP 200, status=ready |
 | Staging anonymous session | user=null, csrfToken=null, loginAvailable=true |
 | LINE authorization redirect | 302 ไป access.line.me, client ID และ callback ตรง COAGO Test, มี PKCE S256 และ HttpOnly cookie |
-| LINE authorization/consent จริง | **รอเจ้าของเพิ่ม Callback URL และกด login ด้วยบัญชี tester** |
-| Real callback / refresh / logout หลัง LINE consent | **ยังไม่ทดสอบโดยผู้ใช้** |
+| LINE authorization/consent จริง | ผ่านตามผลที่เจ้าของรายงาน หลังตั้ง Callback URL และเข้าสู่ระบบด้วย LINE จริง |
+| Real callback / refresh / logout / re-login | เจ้าของยืนยันผ่านครบ: login สำเร็จ, refresh แล้วยังมี session, logout กลับเป็น anonymous และ login ซ้ำได้ |
 
 รอบสร้าง staging ครั้งแรก smoke check ไม่ผ่านและลบ resources ที่เพิ่งสร้างแล้ว หลังเพิ่มข้อความวินิจฉัยแบบไม่เปิดเผย credentials การรันซ้ำผ่านทุกขั้น ยังไม่ได้สรุปสาเหตุของความล้มเหลวครั้งแรกว่าเป็นปัญหาโค้ดหรือการเผยแพร่ที่ edge จึงเก็บ run history ไว้ตามจริง
 
@@ -48,3 +48,9 @@ Worker และ Hyperdrive ชื่อ coago-line-test ถูกเก็บ�
 5. ลองปฏิเสธ consent และเริ่มใหม่ได้
 
 อย่าส่ง authorization code, cookies, ID token, channel secret หรือ access token ลงในแชต/ภาพผลทดสอบ
+
+## การยืนยันจากเจ้าของ — 9 พฤศจิกายน 2026
+
+เจ้าของรายงานว่าเข้าสู่ระบบผ่าน LINE ได้จริง และยืนยันคำว่า “ครบ” หลังทดสอบ refresh, logout และ re-login ทั้ง 3 ข้อ ผลส่วนนี้เป็น manual test ที่เจ้าของรายงาน ไม่ใช่ผลจาก automated mocks หรือการตรวจบัญชีส่วนตัวโดย agent
+
+การปฏิเสธ consent ด้วยบัญชีจริงยังไม่ได้รับการยืนยันจากเจ้าของ ส่วนกรณี denied consent ใน automated tests ผ่านแล้ว ไม่มีการขอหรือบันทึกรหัสผ่าน, OTP, authorization code หรือ session cookies ลงในรายงาน
