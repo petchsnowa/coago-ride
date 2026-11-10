@@ -107,3 +107,32 @@ pnpm release:check https://coago.space
 ต้องอัปเดต test Direct secret และตรวจ DNS ปัจจุบันผ่าน Cloudflare Console หรือสิทธิ์อ่านเฉพาะ zone coago.space ก่อนเตรียม cutover คงไม่มี production migration/deploy/DNS changes และไม่ถือว่า readiness ผ่านจากการที่ code CI ผ่าน
 
 Validation ของ code commit a70d0b7e69c1b16d79f72d03a038ec814001d520: local lint/typecheck,172 unit/API/guard tests และ real PostgreSQL/PostGIS read-only integration ผ่าน; [CI42774467246](https://github.com/petchsnowa/coago-ride/actions/runs/42774467246) ผ่านทั้ง install/audit/build/migrations/integrations/Workers และ46 browser tests ผล CI นี้ไม่ได้ยกเลิกข้อผิดพลาดระบบจริง28P01/521/สิทธิ์DNSข้างต้น
+
+## URL validation diagnostics
+
+ช่วงแรกของ production read-only run42776963156 ยังไม่ถึง database connection เพราะ URL validation ล้มเหลว หลังเจ้าของแก้ค่าหลายครั้ง errorเดิมรวมหลายสาเหตุจึงระบุ field ไม่ได้ (ผลล่าสุดเชื่อมสำเร็จแล้ว ดูส่วน bootstrap ด้านล่าง) เพิ่ม static codes แทน errorรวม โดยไม่ผ่อน guard หรือพิมพ์ URL/password:
+
+| Code | ตรวจจุดนี้ |
+| --- | --- |
+| NEON_URL_SCHEME_REQUIRED | ใช้ URL postgres/postgresql จาก Connect ไม่ใช่เว็บ HTTPS |
+| NEON_HOST_REQUIRED | Host ต้องเป็น Direct Neon endpoint ลงท้าย .neon.tech |
+| NEON_DIRECT_HOST_REQUIRED | Host ยังมี -pooler; ปิด pooling แล้วคัดลอกใหม่ |
+| NEON_CREDENTIALS_REQUIRED | URL ขาด username หรือ password |
+| NEON_DATABASE_NAME_REQUIRED | URL ขาดชื่อฐานหลัง / |
+| NEON_TLS_REQUIRED | Query ต้องมี sslmode=require หรือ verify-full; ยังตรวจ certificate จริง |
+
+การ rerun runเก่าใช้ code commitเดิม แม้ secretถูกอ่านใหม่ หลัง mergeการปรับนี้ต้องเริ่ม **Run workflow ใหม่จาก main** เพื่อใช้ diagnostics ใหม่ ไม่ใช้ Re-run ของ runเดิมในการตรวจcodeใหม่ ไม่มีการเชื่อม production หรือแก้ข้อมูลจากการปรับerror messagesนี้
+
+## สร้างตารางใน production ใหม่ (หลังตรวจเชื่อมสำเร็จ)
+
+ล่าสุด [read-only run42776963156](https://github.com/petchsnowa/coago-ride/actions/runs/42776963156) job129735088863 ผ่านจริง: PostgreSQL18.6/PostGIS3.6.4, appTables0, migrations=null หลังแก้ Environment ให้ตรง `production` และ Direct HOST ตรงกับ secret ปัญหา URL ก่อนหน้าจึงไม่ใช่ผลล่าสุด ไม่อ้างว่าได้สร้างตารางจาก read-only run นี้ เจ้าของสั่งดำเนินการสร้างตารางต่อแล้ว
+
+เพิ่ม workflow **Production database bootstrap** แบบ workflow_dispatchเท่านั้น ไม่มี push trigger ใช้ main และ Environment production เดิม เลือก operation `check` เพื่ออ่านอย่างเดียว หรือ `bootstrap` เพื่อสร้างตาราง ยืนยัน project_confirmation `coago-production` ไม่ต้องเพิ่ม secret ใหม่
+
+เป้าหมายถูก pin ซ้ำในโค้ดกับ hostที่เจ้าของให้และตรวจผ่านแล้ว `ep-restless-brook-a12zmjkb.ap-southeast-1.aws.neon.tech` ฐาน `neondb` นอกเหนือจาก guard host/database/TLS/แยกtestเดิม จึงไม่สามารถเปลี่ยน variable เพื่อให้สคริปต์เขียนไป hostอื่นโดยเงียบๆ
+
+ก่อนเขียนตรวจ PostGIS และ non-extension relations ของทุก user schema, ยอมให้เฉพาะฐานเปล่าหรือ empty Drizzle journal ที่ค้างจาก migration failure ใช้ advisory lockร่วมกับ workflow concurrency จากนั้นใช้ Drizzle migrator เดิมกับ migrations0000–0006 ตรวจ hash/timestamps7รายการ, ตาราง8รายการว่าง และ constraints/columnsสำคัญ ไม่มีการ import test rows หรือสร้างผู้ใช้จำลอง
+
+รันซ้ำบนฐานที่สร้างครบและยังว่างจะรายงาน already_initialized โดยไม่ migrate เพิ่ม ถ้ามีข้อมูลผู้ใช้/เที่ยว/คำขอ หรือ objectอื่น/historyไม่ตรง ให้หยุด ไม่มี drop/truncate/reset หาก migrationSQLล้มเหลว Drizzle rollback application migrations+historyทั้งหมด แต่ empty journal infrastructureอาจคงอยู่ สามารถลองใหม่หลังแก้สาเหตุโดยไม่ลบอะไร หาก post-migration verificationล้มเหลว ให้หยุดตรวจด้วยคน ไม่ถือว่าฐานพร้อมหรือ rollback schemaที่อาจสร้างสำเร็จแล้วโดยอัตโนมัติ
+
+หลัง workflowเข้า main ให้ Actions → Production database bootstrap → Run workflow → main → operation bootstrap → project_confirmation coago-production → Run workflow ต้องเห็น `PRODUCTION_BOOTSTRAP_RESULT` migrations7/appTables8 และ PASS ก่อนเตรียม Hyperdrive/Worker ของproduction ขั้นนี้ไม่ deployเว็บ ไม่แก้ DNS/LINE และไม่ทำให้ coago.space ที่ยัง521เปลี่ยนปลายทาง

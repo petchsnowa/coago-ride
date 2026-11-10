@@ -1,0 +1,42 @@
+name: Production database bootstrap
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: check reads metadata; bootstrap creates tables only in the approved empty database
+        type: choice
+        options: [check, bootstrap]
+        default: check
+      project_confirmation:
+        description: Enter coago-production after checking the selected project in Neon
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: coago-production-database-bootstrap
+  cancel-in-progress: false
+jobs:
+  bootstrap:
+    if: github.repository == 'petchsnowa/coago-ride' && github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Validate approved target and optionally initialize empty schema
+        env:
+          COAGO_DATABASE_TARGET: production
+          COAGO_BOOTSTRAP_OPERATION: ${{ inputs.operation }}
+          COAGO_PROJECT_CONFIRMATION: ${{ inputs.project_confirmation }}
+          COAGO_PRODUCTION_DATABASE_URL: ${{ secrets.COAGO_PRODUCTION_DATABASE_URL }}
+          COAGO_PRODUCTION_DATABASE_HOST: ${{ vars.COAGO_PRODUCTION_DATABASE_HOST }}
+          COAGO_PRODUCTION_DATABASE_NAME: ${{ vars.COAGO_PRODUCTION_DATABASE_NAME }}
+          COAGO_TEST_DATABASE_URL: ${{ secrets.COAGO_TEST_DATABASE_URL }}
+        run: pnpm exec tsx scripts/production/bootstrap-cli.ts
