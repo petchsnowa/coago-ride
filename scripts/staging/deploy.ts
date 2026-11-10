@@ -266,18 +266,20 @@ async function main() {
       (await page.text()).includes("COAGO"),
       "STAGING_ASSETS_CONTENT_INVALID",
     );
+    if (process.env.GITHUB_OUTPUT)
+      await appendFile(process.env.GITHUB_OUTPUT, `app_url=${appURL}\n`);
     console.log(`STAGING_READY ${appURL}`);
     console.log(`LINE_CALLBACK_URL ${callback}`);
     console.log(
       "PASS HTTPS, assets, anonymous session, LINE redirect configuration and Hyperdrive readiness",
     );
     console.log(
-      "MANUAL_LINE_LOGIN_PENDING: register callback on COAGO Test, then sign in with tester account",
+      "MANUAL_CHECK: use the COAGO Test callback and sign in to try this version; real LINE interaction is not automated",
     );
     if (process.env.GITHUB_STEP_SUMMARY)
       await appendFile(
         process.env.GITHUB_STEP_SUMMARY,
-        `# COAGO LINE Login staging\n\n- App: ${appURL}\n- Callback URL: ${callback}\n- Test channel: ${channel}\n- Checks: HTTPS, assets, anonymous session, LINE redirect/PKCE, database readiness passed.\n- Real LINE authorization/callback: pending owner configuration and tester interaction.\n\nTest Worker and Hyperdrive remain for manual testing. No production DNS/routes changed. Neon coago-test auto-deletes after 7 days.\n`,
+        `# COAGO LINE Login staging\n\n- App: ${appURL}\n- Callback URL: ${callback}\n- Test channel: ${channel}\n- Checks: HTTPS, assets, anonymous session, LINE redirect/PKCE, database readiness passed.\n- Real LINE authorization/callback: requires manual tester interaction; see verification docs for prior owner confirmation.\n\nTest Worker and Hyperdrive remain for manual testing. No production DNS/routes changed. Neon coago-test auto-deletes after 7 days.\n`,
       );
   } catch (error) {
     if (!existing && uploadStarted) {

@@ -161,3 +161,7 @@ test:integration
 ## งานหลัง Phase 1
 
 Phase 1 รวมเข้า main แล้ว งานรอบ LINE Login ที่เจ้าของเลือกและเตรียม COAGO Test ให้ใช้ขอบเขตใน docs/phase-2-line-login.md ทำเฉพาะ auth และ staging แยก ไม่เพิ่ม booking/production โดยอัตโนมัติ คงหลักการตรวจจริงและไม่เปิดเผย secrets ตามเดิม
+
+## Phase 2B — ประกาศเที่ยว
+
+หลังเจ้าของรวม PR #2 และสั่งเริ่มงาน ให้ทำขอบเขตใน docs/phase-2b-trips.md: สร้าง/ดู/แก้ไข/ยกเลิกเฉพาะเที่ยวของตน ใช้ COAGO Test staging เดิม ตรวจสิทธิ์ CSRF, idempotency และ version conflicts ยังไม่เพิ่ม search/booking/payments หรือ production โดยอัตโนมัติ

@@ -27,3 +27,5 @@ export const authStateSchema = z.union([
     .strict(),
 ]);
 export type AuthState = z.infer<typeof authStateSchema>;
+
+export * from "./trips";
