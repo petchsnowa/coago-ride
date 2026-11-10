@@ -81,3 +81,29 @@ pnpm release:check https://coago.space
 ## ผลตรวจเครื่องมือรอบนี้
 
 10พ.ย.2026 รัน `release:check` กับ COAGO Test ผ่าน9รายการจริง (TLS verification เปิดอยู่; workspace ใช้ `NODE_USE_ENV_PROXY=1` ตาม proxy ของ environment) ไม่มี write/session/OAuth flow จาก checker เพิ่ม15 unit cases ตรวจ false positives เช่น private API หลุด200, public identity field, full/expired trips, permissive CORS, cross-origin assets และ network failures
+
+## ตรวจรอบหลัง PR #7 merged
+
+10พ.ย.2026 เจ้าของยืนยันว่า PostGIS ใน coago-production รันสำเร็จแล้ว และ coago-test เดิมยังอยู่โดยไม่เปลี่ยนรหัสผ่าน เป็น owner-reported evidence ยังไม่ได้ยืนยัน Direct connection ของ production จาก runner
+
+ตรวจ HTTPS ของ coago.space และ www.coago.space ได้ HTTP521 (TLS verificationผ่าน) DNS NS เป็น chance.ns.cloudflare.com และ georgia.ns.cloudflare.com ข้อมูลนี้ไม่ยืนยันค่า DNS record/Worker routes หลัง Cloudflare หรือสาเหตุ origin ที่แน่นอน ยังไม่เปลี่ยนค่าใด เว็บ staging เปิด assets/auth ได้ แต่ health/ready และ public upcoming เป็น503ซ้ำ ต้องตรวจ Direct DB และ Hyperdrive ต่อ ไม่ถือว่าพร้อม production
+
+เพิ่ม workflow `Database readiness (read only)` เพื่อวินิจฉัย:
+
+- push เฉพาะ branch codex/database-readiness ตรวจ test Direct DB ด้วย BEGIN READ ONLY และ GET metadata ของ Worker coago-line-test/Hyperdrive เดิม ไม่ deploy/update/create resource, ไม่ migrate และไม่อ่านข้อมูลผู้ใช้เป็นรายแถว
+- หลังไฟล์เข้า main: Actions → Database readiness (read only) → Run workflow → target production → project_confirmation `coago-production` ตรวจเฉพาะ production Direct DB ใน read-only transaction
+- Production run ต้องเลือก main และใช้ GitHub Environment `production`: secret `COAGO_PRODUCTION_DATABASE_URL`, variables `COAGO_PRODUCTION_DATABASE_HOST` (Direct hostnameเท่านั้น) และ `COAGO_PRODUCTION_DATABASE_NAME` (ชื่อฐานเช่น neondb) พร้อม repository test secret เดิมเพื่อป้องกันชี้ host test ซ้ำ
+- สคริปต์ตรวจ host/databaseตรงค่าที่เจ้าของตรวจจาก Neon Console แต่ไม่สามารถพิสูจน์ชื่อ project/branch ด้วย Neon API ต้องตรวจว่า Connect เปิดจาก coago-production ก่อนบันทึก secret
+- ไม่ใช้ DATABASE_URL fallback, ไม่รับ pooler/unencrypted TLS/portอื่น และตรวจ TLS certificate จริง แสดงเพียง version/จำนวนตารางแอป/จำนวน migrations ไม่มี URL/password/rows ข้อผิดพลาดแสดงเฉพาะcodeที่กรองแล้ว
+
+ตั้งค่าที่ repository → Settings → Environments → New environment → production แล้ว Add environment secret/variables ตามชื่อข้างต้น คัดลอกเฉพาะ URL `postgresql://...` จาก Neon Connect → Direct ไม่คัดลอกคำสั่ง psql ทั้งบรรทัดและไม่ส่ง URL ลง chat หลังตรวจเชื่อมสำเร็จจึงเตรียม production migration/bootstrap เป็นขั้นแยกที่ review ได้ ไม่มี production migration ใน workflow นี้
+
+ผลวินิจฉัยจริงจาก [Database readiness run42773976749](https://github.com/petchsnowa/coago-ride/actions/runs/42773976749): Direct test connection ล้มด้วย PostgreSQL SQLSTATE **28P01** (ข้อมูล authentication ถูกปฏิเสธ) ส่วน binding metadata มีอยู่, origin host/database/user ตรง test secret และ cachingDisabled=true ไม่มีการแก้ binding/password หรือ deploy จากการตรวจนี้ แม้เจ้าของไม่ได้เปลี่ยนรหัสผ่าน ข้อมูลใน secret ที่ใช้จริงยังไม่ผ่าน authentication ต้องคัดลอก Direct URL จาก coago-test ใหม่ลง repository secret COAGO_TEST_DATABASE_URL แล้วรัน LINE Login staging workflow เดิมจาก main เพื่ออัปเดต Hyperdrive password และตรวจจริงอีกครั้ง อย่าทับด้วย URL ของ production
+
+เพิ่ม GET-only audit ของ coago.space zone/DNS record metadata/Worker routes ใน diagnostic job ไม่พิมพ์ origin IP/content หรือเปลี่ยนเส้นทาง หาก token เดิมอ่านไม่ได้ให้รายงาน access limitation ไม่ขยายสิทธิ์โดยอัตโนมัติ ผล DNS record/route ยังต้องรอ runner ตรวจ ไม่ใช้ HTTP521 เดาสาเหตุ origin ที่แน่นอน
+
+ผล GET-only domain audit จาก [run42774467234](https://github.com/petchsnowa/coago-ride/actions/runs/42774467234): zone `coago.space` มีสถานะ **active** แต่การอ่าน DNS records ถูกปฏิเสธ HTTP403/Cloudflare10000 ด้วย token ปัจจุบัน จึงยังไม่ได้อ่าน records/Worker routes และไม่ทราบ origin ปัจจุบัน ไม่แก้หรือลบ recordsจากการคาดเดา ความผิดพลาดของ diagnostic run เป็นผลตรวจระบบ/สิทธิ์จริง ไม่ใช่ผล unit tests ที่ถูกแทนด้วย mock
+
+ต้องอัปเดต test Direct secret และตรวจ DNS ปัจจุบันผ่าน Cloudflare Console หรือสิทธิ์อ่านเฉพาะ zone coago.space ก่อนเตรียม cutover คงไม่มี production migration/deploy/DNS changes และไม่ถือว่า readiness ผ่านจากการที่ code CI ผ่าน
+
+Validation ของ code commit a70d0b7e69c1b16d79f72d03a038ec814001d520: local lint/typecheck,172 unit/API/guard tests และ real PostgreSQL/PostGIS read-only integration ผ่าน; [CI42774467246](https://github.com/petchsnowa/coago-ride/actions/runs/42774467246) ผ่านทั้ง install/audit/build/migrations/integrations/Workers และ46 browser tests ผล CI นี้ไม่ได้ยกเลิกข้อผิดพลาดระบบจริง28P01/521/สิทธิ์DNSข้างต้น

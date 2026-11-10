@@ -135,3 +135,6 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 ## เตรียม production
 
 ดู [สถานะและคู่มือเปิด coago.space](docs/production-launch.md) ซึ่งแยกฐานใหม่/LINE/config/backup/rollback/งานดูแลผู้ใช้ออกจาก staging ใช้ `pnpm release:check https://coago-line-test.akkarapatchara.workers.dev` ตรวจ HTTP แบบ anonymous GET ที่ไม่เขียนข้อมูล คำสั่งนี้ไม่ deploy/migrate และไม่ยืนยัน backup หรือ real LINE walkthrough ปัจจุบันยังไม่มี production deploy workflow
+
+
+ตรวจ Direct DB/Hyperdrive แบบอ่านอย่างเดียวผ่าน [Database readiness workflow](.github/workflows/database-readiness.yml) ดูวิธีตั้ง production Environment/Direct host ใน [คู่มือ](docs/production-launch.md) ทดสอบตัวอ่าน metadata บนฐาน local ด้วย `pnpm test:database-readiness:integration` ไม่มี deploy/migrate จาก workflow นี้
