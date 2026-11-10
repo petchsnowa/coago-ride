@@ -130,3 +130,8 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 เจ้าของเที่ยวเปิด «คำขอที่เข้ามา» เลือกตอบรับ 1 ที่นั่งหรือปฏิเสธพร้อมเหตุผลได้ ผู้โดยสารดูผล/รายละเอียดที่ส่งคำขอไว้ใน «คำขอของฉัน» และยกเลิกที่นั่งที่ตอบรับแล้วได้ก่อนเวลาเดินทาง ระบบคืนที่นั่งครั้งเดียว เที่ยวเต็มไม่แสดงในผลค้นหาสาธารณะ รายละเอียดที่ตอบรับแล้วถูกล็อกจนไม่มีที่นั่งตอบรับอยู่ การยกเลิกเที่ยวจะยกเลิกคำขอที่ยังใช้งานทั้งหมดด้วย
 
 ดู [กติกาและ API](docs/phase-2e-decisions.md) และ [ผลตรวจ](docs/verification-phase-2e.md) หลัง migrate รัน `pnpm test:decisions:integration` ตรวจการแข่งขันที่นั่งสุดท้ายและ invariants บน PostgreSQL จริง และ `pnpm test:decisions:upgrade` ตรวจ upgrade จาก migration 0005 ที่มีคำขอเก่าในฐานชั่วคราวที่ script สร้าง/ลบเอง `pnpm test:auth:workers` รวม HTTP smoke ด้วย 3 synthetic actors ผ่าน Workers ส่วน remote ใช้ staging workflow เดิม ไม่ production งานคงอยู่ใน PR #6 แบบ Draft ยังไม่ merge
+
+
+## เตรียม production
+
+ดู [สถานะและคู่มือเปิด coago.space](docs/production-launch.md) ซึ่งแยกฐานใหม่/LINE/config/backup/rollback/งานดูแลผู้ใช้ออกจาก staging ใช้ `pnpm release:check https://coago-line-test.akkarapatchara.workers.dev` ตรวจ HTTP แบบ anonymous GET ที่ไม่เขียนข้อมูล คำสั่งนี้ไม่ deploy/migrate และไม่ยืนยัน backup หรือ real LINE walkthrough ปัจจุบันยังไม่มี production deploy workflow

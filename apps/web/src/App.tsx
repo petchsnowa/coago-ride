@@ -67,7 +67,7 @@ export default function App() {
         <div>
           <p className="eyebrow">เริ่มต้นไปด้วยกัน</p>
           <h2 id="system-title">เรากำลังเตรียม COAGO ให้พร้อม</h2>
-          <p>ระยะที่ 2: ทดสอบคำขอร่วมเดินทาง ยังไม่ยืนยันที่นั่ง</p>
+          <p>ทดสอบส่งคำขอ ตอบรับ และยกเลิกที่นั่ง</p>
         </div>
         <div className="check">
           <button onClick={check} disabled={status === "loading"}>
