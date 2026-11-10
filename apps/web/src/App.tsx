@@ -1,9 +1,16 @@
+import RideRequestsPanel from "./RideRequestsPanel";
+import { useCallback } from "react";
 import { useEffect, useRef, useState } from "react";
 import { readySchema, type AuthState } from "@coago/contracts";
 import AuthPanel from "./AuthPanel";
 import TripsPanel from "./TripsPanel";
 import SearchTrips from "./SearchTrips";
 export default function App() {
+  const [requestRevision, setRequestRevision] = useState(0);
+  const requestsChanged = useCallback(
+    () => setRequestRevision((value) => value + 1),
+    [],
+  );
   const [account, setAccount] = useState<AuthState | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",
@@ -44,14 +51,19 @@ export default function App() {
           <span className="badge">เว็บทดสอบ</span>
         </div>
       </nav>
-      <SearchTrips />
+      <SearchTrips account={account} onRequestChange={requestsChanged} />
       <AuthPanel onAccountChange={setAccount} />
+      <RideRequestsPanel
+        account={account}
+        revision={requestRevision}
+        onChange={requestsChanged}
+      />
       <TripsPanel account={account} />
       <section className="system" aria-labelledby="system-title">
         <div>
           <p className="eyebrow">เริ่มต้นไปด้วยกัน</p>
           <h2 id="system-title">เรากำลังเตรียม COAGO ให้พร้อม</h2>
-          <p>ระยะที่ 2: ค้นหาและประกาศเที่ยว ยังไม่เปิดรับจอง</p>
+          <p>ระยะที่ 2: ทดสอบคำขอร่วมเดินทาง ยังไม่ยืนยันที่นั่ง</p>
         </div>
         <div className="check">
           <button onClick={check} disabled={status === "loading"}>

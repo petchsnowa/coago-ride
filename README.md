@@ -119,3 +119,7 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 ค้นหาต้นทาง/ปลายทาง/วันเดินทางและดูรายละเอียดโดยไม่ต้อง login ใช้เฉพาะเที่ยวที่ยังเปิดและอยู่ในอนาคต ดู [คู่มือและ public data contract](docs/phase-2c-discovery.md) และ [ผลตรวจ](docs/verification-phase-2c.md) เพิ่มคำสั่ง `pnpm test:discovery:integration` หลัง migrate เพื่อทดสอบจริงบนฐาน local/test; ยังไม่มี booking/payments
 
 ส่วนหัวหน้าเว็บแสดงเที่ยวเปิดประกาศที่กำลังจะออกเดินทางสูงสุด6เที่ยว พร้อมสถานะและรายละเอียดที่จำเป็นโดยอัตโนมัติ ดู [ขอบเขตและผลตรวจ](docs/trip-status-header.md)
+
+## เริ่มคำขอร่วมเดินทาง
+
+หลัง LINE Login เปิดรายละเอียดเที่ยวของผู้อื่นแล้วส่งคำขอ1ที่นั่งได้ ดู/ยกเลิกใน «คำขอของฉัน» เจ้าของดู «คำขอที่เข้ามา» คำขอpendingยังไม่ยืนยันหรือหักที่นั่ง ขั้นตอบรับยังไม่รวม ดู [กติกา/ขอบเขต](docs/phase-2d-ride-requests.md) และใช้ `pnpm test:requests:integration` หลัง migrations เพื่อทดสอบหลายฝ่ายบนฐานจริง งานต่อบน PR #6 โดยยังไม่ merge

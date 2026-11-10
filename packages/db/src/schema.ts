@@ -130,3 +130,44 @@ export const trips = pgTable(
     ),
   ],
 );
+
+export const rideRequests = pgTable(
+  "ride_requests",
+  {
+    id: uuid("id").primaryKey(),
+    tripId: uuid("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    passengerId: uuid("passenger_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    requestId: uuid("request_id").notNull(),
+    status: text("status").notNull().default("pending"),
+    seatsRequested: integer("seats_requested").notNull().default(1),
+    tripVersion: integer("trip_version").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ride_requests_passenger_key_idx").on(
+      t.passengerId,
+      t.requestId,
+    ),
+    uniqueIndex("ride_requests_pending_idx")
+      .on(t.passengerId, t.tripId)
+      .where(sql`${t.status}='pending'`),
+    index("ride_requests_passenger_created_idx").on(
+      t.passengerId,
+      t.createdAt,
+      t.id,
+    ),
+    index("ride_requests_trip_created_idx").on(t.tripId, t.createdAt, t.id),
+    check("ride_requests_status", sql`${t.status} in ('pending','cancelled')`),
+    check("ride_requests_single_seat", sql`${t.seatsRequested}=1`),
+    check("ride_requests_trip_version", sql`${t.tripVersion}>0`),
+  ],
+);

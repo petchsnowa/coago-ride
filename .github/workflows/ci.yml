@@ -42,6 +42,7 @@ jobs:
       - run: pnpm test:auth:integration
       - run: pnpm test:trips:integration
       - run: pnpm test:discovery:integration
+      - run: pnpm test:requests:integration
       - run: pnpm test:workers
       - run: pnpm test:auth:workers
       - run: pnpm exec playwright install --with-deps chromium

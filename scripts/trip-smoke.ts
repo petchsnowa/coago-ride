@@ -5,6 +5,9 @@ import {
   publicTripListSchema,
   publicTripResponseSchema,
   toBangkokInput,
+  rideRequestResponseSchema,
+  rideRequestListSchema,
+  rideRequestContextSchema,
 } from "@coago/contracts";
 export type SmokeActor = { cookie: string; csrfToken: string };
 export type SmokeRequest = (
@@ -149,6 +152,106 @@ export async function tripSmoke(
     (await request(`/api/trips/${trip.id}`, "PUT", a, update)).status,
     409,
   );
+
+  assert.equal((await request("/api/ride-requests/mine", "GET")).status, 401);
+  const rideInput = { tripId: trip.id, requestId: crypto.randomUUID() };
+  assert.equal(
+    (await request("/api/ride-requests", "POST", a, rideInput)).status,
+    409,
+  );
+  assert.equal(
+    (
+      await request(
+        "/api/ride-requests",
+        "POST",
+        b,
+        rideInput,
+        "https://invalid.example",
+      )
+    ).status,
+    403,
+  );
+  const rideCreated = await request("/api/ride-requests", "POST", b, rideInput);
+  assert.equal(rideCreated.status, 201);
+  const ride = rideRequestResponseSchema.parse(
+    await rideCreated.json(),
+  ).request;
+  assert.equal(ride.seatsRequested, 1);
+  assert.equal(ride.status, "pending");
+  const rideReplay = await request("/api/ride-requests", "POST", b, rideInput);
+  assert.equal(rideReplay.status, 200);
+  assert.equal(
+    rideRequestResponseSchema.parse(await rideReplay.json()).request.id,
+    ride.id,
+  );
+  assert.equal(
+    (
+      await request("/api/ride-requests", "POST", b, {
+        tripId: trip.id,
+        requestId: crypto.randomUUID(),
+      })
+    ).status,
+    409,
+  );
+  const inbox = await request("/api/ride-requests/incoming", "GET", a);
+  assert.equal(inbox.status, 200);
+  assert(
+    rideRequestListSchema
+      .parse(await inbox.json())
+      .requests.some((r) => r.id === ride.id),
+  );
+  const passengerRequests = await request("/api/ride-requests/mine", "GET", b);
+  assert.equal(passengerRequests.status, 200);
+  assert(
+    rideRequestListSchema
+      .parse(await passengerRequests.json())
+      .requests.some((r) => r.id === ride.id),
+  );
+  const context = await request(
+    `/api/ride-requests/for-trip/${trip.id}`,
+    "GET",
+    b,
+  );
+  assert.equal(context.status, 200);
+  assert.equal(
+    rideRequestContextSchema.parse(await context.json()).canRequest,
+    false,
+  );
+  assert.equal(
+    (await request(`/api/ride-requests/${ride.id}/cancel`, "POST", a, {}))
+      .status,
+    404,
+  );
+  const cancelledRequest = await request(
+    `/api/ride-requests/${ride.id}/cancel`,
+    "POST",
+    b,
+    {},
+  );
+  assert.equal(cancelledRequest.status, 200);
+  assert.equal(
+    rideRequestResponseSchema.parse(await cancelledRequest.json()).request
+      .status,
+    "cancelled",
+  );
+  assert.equal(
+    (await request(`/api/ride-requests/${ride.id}/cancel`, "POST", b, {}))
+      .status,
+    200,
+  );
+  const rideAgain = await request("/api/ride-requests", "POST", b, {
+    tripId: trip.id,
+    requestId: crypto.randomUUID(),
+  });
+  assert.equal(rideAgain.status, 201);
+  const seatsAfter = await request(`/api/discovery/trips/${trip.id}`, "GET");
+  assert.equal(
+    publicTripResponseSchema.parse(await seatsAfter.json()).trip.seats,
+    2,
+  );
+  console.log(
+    "PASS ride requests HTTP: authenticated one-seat request/replay, duplicates/own-trip/CSRF guards, private lists/context, cancellation/resubmit and unchanged seats",
+  );
   const cancellation = { version: 2, reason: "เสร็จสิ้นการทดสอบอัตโนมัติ" };
   const cancelled = await request(
     `/api/trips/${trip.id}/cancel`,
@@ -161,6 +264,15 @@ export async function tripSmoke(
   assert.equal(final.version, 3);
   assert.equal(final.status, "cancelled");
   assert.equal(final.cancellationReason, cancellation.reason);
+  assert.equal(
+    (
+      await request("/api/ride-requests", "POST", b, {
+        tripId: trip.id,
+        requestId: crypto.randomUUID(),
+      })
+    ).status,
+    409,
+  );
   assert.equal(
     (await request(`/api/discovery/trips/${trip.id}`, "GET")).status,
     404,

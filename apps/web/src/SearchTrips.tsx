@@ -1,3 +1,4 @@
+import RideRequestAction from "./RideRequestAction";
 import TripSummaryCard from "./TripSummaryCard";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -6,6 +7,7 @@ import {
   publicTripListSchema,
   publicTripResponseSchema,
   toBangkokInput,
+  type AuthState,
   type TripSearch,
   type PublicTripSummary,
   type PublicTripDetail,
@@ -27,7 +29,10 @@ async function get(path: string, signal: AbortSignal) {
   if (!response.ok) throw new Error("unavailable");
   return response.json();
 }
-export default function SearchTrips() {
+export default function SearchTrips({
+  account = null,
+  onRequestChange = () => {},
+}: { account?: AuthState | null; onRequestChange?: () => void } = {}) {
   const [form, setForm] = useState({
     originProvince: "",
     destinationProvince: "",
@@ -221,7 +226,7 @@ export default function SearchTrips() {
           <p className="eyebrow">เส้นทางเดียวกัน ไปด้วยกันได้</p>
           <h1 id="search-title">รายการเที่ยวเดินทาง</h1>
           <p>
-            ดูสถานะ เส้นทาง และรายละเอียดเที่ยวได้ทันที · ยังไม่เปิดจองที่นั่ง
+            ดูสถานะ เส้นทาง และรายละเอียดเที่ยวได้ทันที · คำขอยังต้องรอตอบรับ
           </p>
         </div>
         <a className="board-search-link" href="#search-form">
@@ -461,8 +466,14 @@ export default function SearchTrips() {
               </div>
             </dl>
             <p className="field-help">
-              รายละเอียดอาจเปลี่ยนแปลงได้ · ขณะนี้ยังไม่เปิดรับจองหรือชำระเงิน
+              รายละเอียดอาจเปลี่ยนแปลงได้ · คำขอยังไม่ใช่การได้ที่นั่ง ·
+              ยังไม่มีการชำระเงิน
             </p>
+            <RideRequestAction
+              account={account}
+              tripId={detail.id}
+              onChange={onRequestChange}
+            />
             <button
               className="secondary"
               onClick={() => void openDetail(detail.id)}
