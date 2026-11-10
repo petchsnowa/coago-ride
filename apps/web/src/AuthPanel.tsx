@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { authStateSchema, type AuthState } from "@coago/contracts";
-export default function AuthPanel() {
+export default function AuthPanel({
+  onAccountChange,
+}: { onAccountChange?: (account: AuthState | null) => void } = {}) {
   const [account, setAccount] = useState<AuthState | null>(null),
     [error, setError] = useState(false),
     [busy, setBusy] = useState(false),
@@ -29,6 +31,9 @@ export default function AuthPanel() {
       controller.abort();
     };
   }, [attempt]);
+  useEffect(() => {
+    onAccountChange?.(account);
+  }, [account, onAccountChange]);
   async function logout() {
     if (!account?.csrfToken || busy) return;
     setBusy(true);

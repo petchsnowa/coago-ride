@@ -7,8 +7,12 @@ import {
 } from "miniflare";
 import { withDatabase } from "@coago/db";
 import { testDatabaseUrl } from "./database";
+import { tripSmoke } from "./trip-smoke";
+import { postgresAuthStore } from "../apps/api/src/auth/store";
+import { hash } from "../apps/api/src/auth/crypto";
 const url = testDatabaseUrl(),
-  subject = "U" + randomBytes(16).toString("hex");
+  subject = "U" + randomBytes(16).toString("hex"),
+  otherSubject = "U" + randomBytes(16).toString("hex");
 const runtime = new Miniflare({
   modules: true,
   scriptPath: "apps/api/dist/index.js",
@@ -52,7 +56,7 @@ const runtime = new Miniflare({
 const watchdog = setTimeout(() => {
   console.error("AUTH_WORKERS_TIMEOUT");
   process.exit(1);
-}, 30000);
+}, 60000);
 function cookie(
   response: { headers: { get(name: string): string | null } },
   name: string,
@@ -85,6 +89,36 @@ try {
     csrfToken: string;
   };
   assert.equal(data.user.displayName, "Runtime test user");
+  const otherToken = randomBytes(32).toString("hex"),
+    otherCsrf = randomBytes(32).toString("hex"),
+    now = new Date();
+  await postgresAuthStore(url).createSession(
+    { subject: otherSubject, displayName: "Other runtime tester" },
+    await hash(otherToken),
+    otherCsrf,
+    new Date(now.getTime() + 600000),
+    now,
+  );
+  await tripSmoke(
+    async (path, method, actor, body, origin = "https://coago.test") =>
+      runtime.dispatchFetch(`https://coago.test${path}`, {
+        method,
+        headers: {
+          ...(actor
+            ? { Cookie: actor.cookie, "X-CSRF-Token": actor.csrfToken }
+            : {}),
+          ...(method !== "GET"
+            ? { Origin: origin, "Content-Type": "application/json" }
+            : {}),
+        },
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      }),
+    { cookie: sessionCookie, csrfToken: data.csrfToken },
+    { cookie: `__Host-coago_session=${otherToken}`, csrfToken: otherCsrf },
+  );
+  console.log(
+    "PASS Workers trip CRUD with real PostgreSQL, two synthetic sessions, owner isolation, CSRF and version conflicts",
+  );
   const logout = await runtime.dispatchFetch(
     "https://coago.test/api/auth/logout",
     {
@@ -113,8 +147,8 @@ try {
     await runtime.dispose();
     await withDatabase(url, async (_db, client) => {
       await client.query(
-        "DELETE FROM users WHERE id IN (SELECT user_id FROM external_identities WHERE provider=$1 AND subject=$2)",
-        ["line", subject],
+        "DELETE FROM users WHERE id IN (SELECT user_id FROM external_identities WHERE provider=$1 AND subject IN ($2,$3))",
+        ["line", subject, otherSubject],
       );
     });
   } finally {

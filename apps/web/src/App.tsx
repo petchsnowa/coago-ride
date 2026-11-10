@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { readySchema } from "@coago/contracts";
+import { readySchema, type AuthState } from "@coago/contracts";
 import AuthPanel from "./AuthPanel";
+import TripsPanel from "./TripsPanel";
 export default function App() {
+  const [account, setAccount] = useState<AuthState | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",
   );
@@ -55,7 +57,8 @@ export default function App() {
           <span>จุดหมายเดียวกัน</span>
         </div>
       </section>
-      <AuthPanel />
+      <AuthPanel onAccountChange={setAccount} />
+      <TripsPanel account={account} />
       <section className="system" aria-labelledby="system-title">
         <div>
           <p className="eyebrow">เริ่มต้นไปด้วยกัน</p>

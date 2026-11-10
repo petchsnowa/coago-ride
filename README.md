@@ -48,6 +48,7 @@ pnpm db:migrate
 pnpm test:integration
 pnpm test:workers
 pnpm test:auth:integration
+pnpm test:trips:integration
 pnpm test:auth:workers
 pnpm exec playwright install chromium
 pnpm test:browser
@@ -62,7 +63,7 @@ pnpm test:browser
 
 ## ฐานข้อมูลและ migrations
 
-`packages/db/src/schema.ts` เริ่มจาก `system_metadata` และ migration เปิด PostGIS extension Phase 2A เพิ่ม schema auth ใน migration 0001; booking ยังไม่รวมในรอบนี้
+`packages/db/src/schema.ts` เริ่มจาก `system_metadata` และ migration เปิด PostGIS extension Phase 2A เพิ่ม schema auth ใน migration 0001 และ Phase 2B เพิ่ม trips ใน migration 0002; booking ยังไม่รวมในรอบนี้
 
 หลังแก้ schema ให้รัน `pnpm db:generate` ตรวจ SQL และ journal ที่ generate จริง หากเป็น custom SQL เช่น extension ให้ใส่ใน versioned migrations อย่างถูกต้อง ไม่แก้ migration ที่ใช้แล้วเพื่อเปลี่ยนประวัติ
 
@@ -108,3 +109,7 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 ทดสอบ local TCP driver ใน Workers ได้ไม่เท่ากับทดสอบ remote Hyperdrive แล้ว ต้องเลือก provider และจัดเตรียม test/staging ที่ได้รับอนุญาตก่อนตรวจ remote connectivity การเข้าสู่ระบบจริงยังต้องให้เจ้าของตั้ง callback และทดสอบกับบัญชี LINE; ไม่มีการยืนยันเอกสารผู้ขับขี่หรือระบบจองในรอบนี้
 
 ดูรายการผลจริงและ blockers ใน [verification](docs/verification-phase-1.md)
+
+## ประกาศเที่ยว Phase 2B
+
+ดูขอบเขต API, กติกาเวลาไทย/สตางค์, วิธีลองประกาศ–แก้ไข–ยกเลิก และการตรวจจริงใน [คู่มือ Phase 2B](docs/phase-2b-trips.md) และ [ผลตรวจ](docs/verification-phase-2b.md) รายการเที่ยวเป็นส่วนตัวเฉพาะเจ้าของ ยังไม่มี search หรือ booking

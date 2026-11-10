@@ -40,6 +40,7 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm test:integration
       - run: pnpm test:auth:integration
+      - run: pnpm test:trips:integration
       - run: pnpm test:workers
       - run: pnpm test:auth:workers
       - run: pnpm exec playwright install --with-deps chromium
