@@ -15,7 +15,11 @@
 
 ## Remote และ CI
 
-ยังรอ workflow ของ commit รอบนี้ ต้องบันทึก run URL และผลจริงก่อนอ้างว่าผ่าน remote Workers → Hyperdrive → Neon
+Remote staging ผ่านจริงบน code commit `ab646388e8013af52c69fa78917b0ce3f5922cc1`: [LINE Login staging run 42769095880](https://github.com/petchsnowa/coago-ride/actions/runs/42769095880) migration test DB สำเร็จ, HTTPS/assets/anonymous auth/LINE redirect/readiness ผ่าน และ shared HTTP smoke ตรวจตอบรับ/ปฏิเสธ/ยกเลิก, 3 actors, concurrent last seat, duplicate accept/refund, full-trip exclusion, stale snapshot และ edit lock ผ่าน Workers → Hyperdrive → Neon จริง Log ยืนยัน `SYNTHETIC_TRIP_ACCOUNTS_CLEANED` ไม่ลบบัญชีผู้ใช้จริง
+
+ตรวจซ้ำจาก workspace ด้วย curl ที่เปิด TLS verification: readiness200, private mine/incoming401เมื่อไม่มีsession, public upcoming200และจำกัดเฉพาะpublic fields/ที่นั่งว่าง>0 Python urllib defaultถูกCloudflareปฏิเสธ403/1010 แต่ curl สำเร็จ ไม่ปิดTLSหรือแก้Cloudflare security
+
+CI ของ code commit: [PR run 42769101809](https://github.com/petchsnowa/coago-ride/actions/runs/42769101809) และ [push run 42769096327](https://github.com/petchsnowa/coago-ride/actions/runs/42769096327) PR run completed success ครบทุกขั้น รวม 144 unit tests และ 46 browser tests; push runตรวจซ้ำ workflow เดียวกัน
 
 ## Manual
 
