@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   pgTable,
+  jsonb,
   text,
   timestamp,
   uuid,
@@ -90,6 +91,7 @@ export const trips = pgTable(
     pickupPoint: text("pickup_point").notNull(),
     dropoffPoint: text("dropoff_point").notNull(),
     seats: integer("seats_offered").notNull(),
+    bookedSeats: integer("seats_booked").notNull().default(0),
     vehicleModel: text("vehicle_model").notNull(),
     vehicleColor: text("vehicle_color").notNull(),
     contributionSatang: integer("contribution_satang").notNull(),
@@ -106,11 +108,15 @@ export const trips = pgTable(
       .defaultNow(),
   },
   (t) => [
+    index("trips_upcoming_active_idx")
+      .on(t.departureAt, t.id)
+      .where(sql`${t.status}='active'`),
     uniqueIndex("trips_owner_request_idx").on(t.ownerId, t.requestId),
     index("trips_owner_created_idx").on(t.ownerId, t.createdAt, t.id),
     index("trips_search_active_idx")
       .on(t.originProvince, t.destinationProvince, t.departureAt, t.id)
       .where(sql`${t.status}='active'`),
+    check("trips_booked_range", sql`${t.bookedSeats} between 0 and ${t.seats}`),
     check("trips_seats_range", sql`${t.seats} between 1 and 8`),
     check(
       "trips_contribution_range",
@@ -125,5 +131,64 @@ export const trips = pgTable(
       "trips_status_reason",
       sql`(${t.status}='active' and ${t.cancellationReason} is null) or (${t.status}='cancelled' and ${t.cancellationReason} is not null and length(trim(${t.cancellationReason}))>0)`,
     ),
+  ],
+);
+
+export const rideRequests = pgTable(
+  "ride_requests",
+  {
+    id: uuid("id").primaryKey(),
+    tripId: uuid("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    passengerId: uuid("passenger_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    requestId: uuid("request_id").notNull(),
+    status: text("status").notNull().default("pending"),
+    seatsRequested: integer("seats_requested").notNull().default(1),
+    tripVersion: integer("trip_version").notNull(),
+    tripSnapshot: jsonb("trip_snapshot").notNull(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    rejectionReason: text("rejection_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ride_requests_passenger_key_idx").on(
+      t.passengerId,
+      t.requestId,
+    ),
+    uniqueIndex("ride_requests_active_idx")
+      .on(t.passengerId, t.tripId)
+      .where(sql`${t.status} in ('pending','accepted')`),
+    index("ride_requests_passenger_created_idx").on(
+      t.passengerId,
+      t.createdAt,
+      t.id,
+    ),
+    index("ride_requests_trip_created_idx").on(t.tripId, t.createdAt, t.id),
+    check(
+      "ride_requests_status",
+      sql`${t.status} in ('pending','accepted','rejected','cancelled')`,
+    ),
+    check(
+      "ride_requests_snapshot_object",
+      sql`jsonb_typeof(${t.tripSnapshot})='object'`,
+    ),
+    check(
+      "ride_requests_decision_time",
+      sql`${t.status} not in ('accepted','rejected') or ${t.decidedAt} is not null`,
+    ),
+    check(
+      "ride_requests_rejection_reason",
+      sql`${t.rejectionReason} is null or (${t.status}='rejected' and length(${t.rejectionReason})<=300)`,
+    ),
+    check("ride_requests_single_seat", sql`${t.seatsRequested}=1`),
+    check("ride_requests_trip_version", sql`${t.tripVersion}>0`),
   ],
 );

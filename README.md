@@ -117,3 +117,16 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 ## ค้นหาเที่ยว Phase 2C
 
 ค้นหาต้นทาง/ปลายทาง/วันเดินทางและดูรายละเอียดโดยไม่ต้อง login ใช้เฉพาะเที่ยวที่ยังเปิดและอยู่ในอนาคต ดู [คู่มือและ public data contract](docs/phase-2c-discovery.md) และ [ผลตรวจ](docs/verification-phase-2c.md) เพิ่มคำสั่ง `pnpm test:discovery:integration` หลัง migrate เพื่อทดสอบจริงบนฐาน local/test; ยังไม่มี booking/payments
+
+ส่วนหัวหน้าเว็บแสดงเที่ยวเปิดประกาศที่กำลังจะออกเดินทางสูงสุด6เที่ยว พร้อมสถานะและรายละเอียดที่จำเป็นโดยอัตโนมัติ ดู [ขอบเขตและผลตรวจ](docs/trip-status-header.md)
+
+## เริ่มคำขอร่วมเดินทาง
+
+หลัง LINE Login เปิดรายละเอียดเที่ยวของผู้อื่นแล้วส่งคำขอ1ที่นั่งได้ ดู/ยกเลิกใน «คำขอของฉัน» เจ้าของดู «คำขอที่เข้ามา» คำขอpendingยังไม่ยืนยันหรือหักที่นั่ง ขั้นตอบรับเพิ่มใน Phase 2E ด้านล่าง ดู [กติกา/ขอบเขต](docs/phase-2d-ride-requests.md) และใช้ `pnpm test:requests:integration` หลัง migrations เพื่อทดสอบหลายฝ่ายบนฐานจริง งานต่อบน PR #6 โดยยังไม่ merge
+
+
+## ตอบรับ/ปฏิเสธและจัดสรรที่นั่ง Phase 2E
+
+เจ้าของเที่ยวเปิด «คำขอที่เข้ามา» เลือกตอบรับ 1 ที่นั่งหรือปฏิเสธพร้อมเหตุผลได้ ผู้โดยสารดูผล/รายละเอียดที่ส่งคำขอไว้ใน «คำขอของฉัน» และยกเลิกที่นั่งที่ตอบรับแล้วได้ก่อนเวลาเดินทาง ระบบคืนที่นั่งครั้งเดียว เที่ยวเต็มไม่แสดงในผลค้นหาสาธารณะ รายละเอียดที่ตอบรับแล้วถูกล็อกจนไม่มีที่นั่งตอบรับอยู่ การยกเลิกเที่ยวจะยกเลิกคำขอที่ยังใช้งานทั้งหมดด้วย
+
+ดู [กติกาและ API](docs/phase-2e-decisions.md) และ [ผลตรวจ](docs/verification-phase-2e.md) หลัง migrate รัน `pnpm test:decisions:integration` ตรวจการแข่งขันที่นั่งสุดท้ายและ invariants บน PostgreSQL จริง และ `pnpm test:decisions:upgrade` ตรวจ upgrade จาก migration 0005 ที่มีคำขอเก่าในฐานชั่วคราวที่ script สร้าง/ลบเอง `pnpm test:auth:workers` รวม HTTP smoke ด้วย 3 synthetic actors ผ่าน Workers ส่วน remote ใช้ staging workflow เดิม ไม่ production งานคงอยู่ใน PR #6 แบบ Draft ยังไม่ merge

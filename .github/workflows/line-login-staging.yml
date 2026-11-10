@@ -8,6 +8,7 @@ on:
         codex/phase-2b-trip-posting,
         codex/phase-2c-trip-search,
         codex/fix-trip-detail-layout,
+        codex/trip-status-header,
       ]
     paths:
       - .github/workflows/line-login-staging.yml

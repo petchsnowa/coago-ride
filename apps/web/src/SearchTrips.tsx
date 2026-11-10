@@ -1,3 +1,5 @@
+import RideRequestAction from "./RideRequestAction";
+import TripSummaryCard from "./TripSummaryCard";
 import { useEffect, useRef, useState } from "react";
 import {
   provinces,
@@ -5,6 +7,7 @@ import {
   publicTripListSchema,
   publicTripResponseSchema,
   toBangkokInput,
+  type AuthState,
   type TripSearch,
   type PublicTripSummary,
   type PublicTripDetail,
@@ -26,12 +29,54 @@ async function get(path: string, signal: AbortSignal) {
   if (!response.ok) throw new Error("unavailable");
   return response.json();
 }
-export default function SearchTrips() {
+export default function SearchTrips({
+  account = null,
+  onRequestChange = () => {},
+  revision = 0,
+}: {
+  account?: AuthState | null;
+  onRequestChange?: () => void;
+  revision?: number;
+} = {}) {
   const [form, setForm] = useState({
     originProvince: "",
     destinationProvince: "",
     date: toBangkokInput(new Date().toISOString()).slice(0, 10),
   });
+  const [upcoming, setUpcoming] = useState<PublicTripSummary[]>([]),
+    [upcomingBusy, setUpcomingBusy] = useState(true),
+    [upcomingError, setUpcomingError] = useState("");
+  const upcomingRequest = useRef<AbortController | null>(null),
+    upcomingSequence = useRef(0);
+  async function loadUpcoming() {
+    upcomingRequest.current?.abort();
+    const controller = new AbortController(),
+      current = ++upcomingSequence.current;
+    upcomingRequest.current = controller;
+    const timer = setTimeout(() => controller.abort(), 12000);
+    setUpcoming([]);
+    setUpcomingBusy(true);
+    setUpcomingError("");
+    try {
+      const data = publicTripListSchema.parse(
+        await get("/api/discovery/trips/upcoming", controller.signal),
+      );
+      if (current === upcomingSequence.current) setUpcoming(data.trips);
+    } catch {
+      if (current === upcomingSequence.current)
+        setUpcomingError("โหลดรายการเที่ยวไม่สำเร็จ กรุณาลองอีกครั้ง");
+    } finally {
+      clearTimeout(timer);
+      if (current === upcomingSequence.current) setUpcomingBusy(false);
+    }
+  }
+  useEffect(() => {
+    void loadUpcoming();
+    return () => {
+      ++upcomingSequence.current;
+      upcomingRequest.current?.abort();
+    };
+  }, []);
   const [applied, setApplied] = useState<TripSearch | null>(null),
     [trips, setTrips] = useState<PublicTripSummary[]>([]),
     [cursor, setCursor] = useState<string | null>(null);
@@ -100,6 +145,14 @@ export default function SearchTrips() {
       if (current === searchSequence.current) setBusy(false);
     }
   }
+  const seenRevision = useRef(revision);
+  useEffect(() => {
+    if (seenRevision.current !== revision) {
+      seenRevision.current = revision;
+      void loadUpcoming();
+      if (applied) void search(applied);
+    }
+  }, [revision]);
   function submit(event: React.FormEvent) {
     event.preventDefault();
     const parsed = tripSearchSchema.safeParse(form);
@@ -137,6 +190,7 @@ export default function SearchTrips() {
             "เที่ยวนี้ปิดประกาศหรือออกเดินทางแล้ว กรุณาค้นหาเที่ยวอื่น",
           );
           setTrips((prev) => prev.filter((t) => t.id !== id));
+          setUpcoming((prev) => prev.filter((t) => t.id !== id));
         } else setDetailError("โหลดรายละเอียดไม่สำเร็จ กรุณาลองอีกครั้ง");
       }
     } finally {
@@ -180,10 +234,93 @@ export default function SearchTrips() {
   );
   return (
     <section className="discovery" aria-labelledby="search-title">
-      <p className="eyebrow">หาที่นั่งว่างในเส้นทางของคุณ</p>
-      <h2 id="search-title">ค้นหาเที่ยวเดินทาง</h2>
-      <p>ค้นหาและดูรายละเอียดได้ก่อนเข้าสู่ระบบ · ยังไม่เปิดจองที่นั่ง</p>
+      <div className="trip-board-heading">
+        <div>
+          <p className="eyebrow">เส้นทางเดียวกัน ไปด้วยกันได้</p>
+          <h1 id="search-title">รายการเที่ยวเดินทาง</h1>
+          <p>
+            ดูสถานะ เส้นทาง และรายละเอียดเที่ยวได้ทันที · คำขอยังต้องรอตอบรับ
+          </p>
+        </div>
+        <a className="board-search-link" href="#search-form">
+          ค้นหาเส้นทางของคุณ ↓
+        </a>
+      </div>
+      {!applied && (
+        <section
+          className="upcoming-trips"
+          aria-labelledby="upcoming-title"
+          aria-busy={upcomingBusy}
+        >
+          <div className="trip-board-subheading">
+            <div>
+              <h2 id="upcoming-title">เที่ยวที่กำลังจะออกเดินทาง</h2>
+              <p>
+                เฉพาะเที่ยวที่เปิดประกาศ · เรียงเวลาออกเดินทางใกล้ที่สุดก่อน ·
+                แสดงสูงสุด 6 เที่ยว
+              </p>
+            </div>
+            <button
+              className="secondary"
+              disabled={upcomingBusy}
+              onClick={() => void loadUpcoming()}
+            >
+              โหลดเที่ยวล่าสุด
+            </button>
+          </div>
+          <p role="status" className="upcoming-status">
+            {upcomingBusy
+              ? "กำลังโหลดรายการเที่ยว…"
+              : upcomingError
+                ? ""
+                : upcoming.length
+                  ? `แสดง ${upcoming.length} เที่ยวที่เปิดประกาศ`
+                  : "ยังไม่มีเที่ยวเปิดประกาศในขณะนี้ ลองกลับมาตรวจอีกครั้ง"}
+          </p>
+          {upcomingError && (
+            <div role="alert" className="trip-alert">
+              <p>{upcomingError}</p>
+              <button className="secondary" onClick={() => void loadUpcoming()}>
+                ลองโหลดรายการอีกครั้ง
+              </button>
+            </div>
+          )}
+          <div className="upcoming-cards">
+            {upcoming.map((trip) => (
+              <TripSummaryCard
+                key={trip.id}
+                trip={trip}
+                variant="upcoming"
+                onDetails={(id) => void openDetail(id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+      <div className="search-section-heading">
+        <h2>ค้นหาเฉพาะเส้นทาง</h2>
+        <p>เลือกจังหวัดและวันเดินทางตามเวลาไทย</p>
+        {applied && (
+          <button
+            className="secondary"
+            onClick={() => {
+              ++searchSequence.current;
+              searchRequest.current?.abort();
+              setBusy(false);
+              setFieldErrors({});
+              setApplied(null);
+              setTrips([]);
+              setCursor(null);
+              setError("");
+              void loadUpcoming();
+            }}
+          >
+            กลับไปดูเที่ยวที่กำลังจะออกเดินทาง
+          </button>
+        )}
+      </div>
       <form
+        id="search-form"
         className="trip-form search-form"
         onSubmit={submit}
         noValidate
@@ -249,7 +386,7 @@ export default function SearchTrips() {
           {busy
             ? "กำลังโหลดเที่ยวที่ยังเปิดประกาศ…"
             : !applied
-              ? "เลือกเส้นทางและวัน เพื่อเริ่มค้นหา"
+              ? ""
               : error
                 ? ""
                 : trips.length
@@ -258,39 +395,11 @@ export default function SearchTrips() {
         </p>
         <div className="search-cards">
           {trips.map((trip) => (
-            <article className="trip-card search-card" key={trip.id}>
-              <div className="trip-card-top">
-                <h3>
-                  {trip.originProvince} <span aria-hidden="true">→</span>{" "}
-                  {trip.destinationProvince}
-                </h3>
-                <span className="trip-status">เปิดประกาศ</span>
-              </div>
-              <p>{time(trip.departureAt)} น. (เวลาไทย)</p>
-              <dl className="trip-details">
-                <div>
-                  <dt>ที่นั่งว่างที่ประกาศ</dt>
-                  <dd>{trip.seats} ที่นั่ง</dd>
-                </div>
-                <div>
-                  <dt>ร่วมค่าเดินทาง</dt>
-                  <dd>{money(trip.contributionSatang)} บาท/คน</dd>
-                </div>
-                <div>
-                  <dt>รถ</dt>
-                  <dd>
-                    {trip.vehicleModel} · {trip.vehicleColor}
-                  </dd>
-                </div>
-              </dl>
-              <button
-                className="secondary"
-                onClick={() => void openDetail(trip.id)}
-                aria-label={`ดูรายละเอียดเที่ยว ${trip.originProvince} ไป ${trip.destinationProvince} ${time(trip.departureAt)}`}
-              >
-                ดูรายละเอียด
-              </button>
-            </article>
+            <TripSummaryCard
+              key={trip.id}
+              trip={trip}
+              onDetails={(id) => void openDetail(id)}
+            />
           ))}
         </div>
         {cursor && !error && (
@@ -370,8 +479,14 @@ export default function SearchTrips() {
               </div>
             </dl>
             <p className="field-help">
-              รายละเอียดอาจเปลี่ยนแปลงได้ · ขณะนี้ยังไม่เปิดรับจองหรือชำระเงิน
+              รายละเอียดอาจเปลี่ยนแปลงได้ · คำขอยังไม่ใช่การได้ที่นั่ง ·
+              ยังไม่มีการชำระเงิน
             </p>
+            <RideRequestAction
+              account={account}
+              tripId={detail.id}
+              onChange={onRequestChange}
+            />
             <button
               className="secondary"
               onClick={() => void openDetail(detail.id)}

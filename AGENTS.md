@@ -169,3 +169,11 @@ Phase 1 รวมเข้า main แล้ว งานรอบ LINE Login �
 ## Phase 2C — ค้นหาและรายละเอียด
 
 เจ้าของรวม PR #3 และสั่งให้เริ่มขอบเขตใน docs/phase-2c-discovery.md ค้นหาเส้นทาง/วันไทยและดูรายละเอียดเฉพาะเที่ยวที่ยังเปิดและอยู่ในอนาคต Public DTO ต้องไม่เปิดเผย owner/LINE/session/internal fields แยกจาก owner API คงตรวจจริงบน COAGO Test เดิม ไม่เพิ่ม booking/payments/production โดยอัตโนมัติ
+
+## Phase 2D — เริ่มคำขอร่วมเดินทาง
+
+เจ้าของให้เริ่มระบบส่งคำขอโดยยังไม่ merge PR #6 ให้ทำต่อบน branchเดิมตาม docs/phase-2d-ride-requests.md เฉพาะpending/cancelled 1ที่นั่งต่อคำขอ ดูของตน/ยกเลิก และเจ้าของดูincoming ยังไม่ตอบรับ/ปฏิเสธ/หักที่นั่ง/ชำระเงิน ไม่ปรับดีไซน์ต่อและไม่mergeหรือproductionโดยอัตโนมัติ
+
+## Phase 2E — ตอบรับคำขอและจัดสรรที่นั่ง
+
+เจ้าของสั่งดำเนินการหลังทดสอบส่ง/ยกเลิกคำขอแล้ว ให้ทำต่อบน PR #6 ตาม docs/phase-2e-decisions.md แทนข้อจำกัด pending-only ของ Phase 2D: เจ้าของตอบรับ/ปฏิเสธ หักที่นั่งเมื่อ accepted และคืนเมื่อยกเลิกก่อนออกเดินทาง ล็อก trip ใน transaction ป้องกัน overbooking/retry ซ้ำ เก็บ snapshot เงื่อนไขและตรวจ content version ไม่แก้ข้อตกลงเมื่อมีผู้ตอบรับแล้ว ยังคง Draft ไม่ merge ไม่ production และไม่เพิ่มการชำระเงิน

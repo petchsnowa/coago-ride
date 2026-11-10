@@ -570,3 +570,231 @@ footer {
   margin: 0;
   line-height: 1.5;
 }
+
+.header-links {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+.header-links a {
+  font-size: 14px;
+  font-weight: 500;
+}
+.trip-board-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 28px;
+}
+.trip-board-heading h1 {
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.4;
+  letter-spacing: 0;
+  margin: 8px 0;
+}
+.trip-board-heading p,
+.trip-board-subheading p {
+  color: #586c60;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.board-search-link {
+  color: #174f3e;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.trip-board-subheading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+}
+.trip-board-subheading h2 {
+  font-size: 20px;
+  margin: 0;
+}
+.trip-board-subheading p {
+  margin: 6px 0;
+}
+.trip-board-subheading button,
+.search-section-heading button {
+  width: auto;
+  flex-shrink: 0;
+}
+.upcoming-status {
+  color: #586c60;
+  font-size: 14px;
+}
+.upcoming-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.upcoming-card {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+.upcoming-card h3 {
+  font-size: 20px;
+  margin: 0;
+  line-height: 1.6;
+}
+.upcoming-card button {
+  margin-top: auto;
+}
+.upcoming-card .trip-status {
+  font-size: 12px;
+  font-weight: 600;
+}
+.search-section-heading {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #d8e0d7;
+}
+.search-section-heading h2 {
+  font-size: 22px;
+  margin: 0;
+}
+#search-form {
+  scroll-margin-top: 20px;
+}
+@media (max-width: 700px) {
+  .trip-board-heading {
+    flex-direction: column;
+    align-items: start;
+    gap: 8px;
+  }
+  .trip-board-subheading {
+    align-items: start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .upcoming-cards {
+    grid-template-columns: 1fr;
+  }
+  .header-links {
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .header-links .badge {
+    display: none;
+  }
+}
+
+.request-action {
+  margin: 24px 0;
+  padding: 20px;
+  background: #e8eddf;
+  border-radius: 14px;
+  font-size: 14px;
+}
+.request-action a {
+  color: #174f3e;
+  font-weight: 600;
+}
+.request-action p {
+  line-height: 1.7;
+}
+.ride-requests {
+  margin: 40px 0;
+}
+.request-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+.request-tabs button {
+  width: auto;
+}
+.request-tabs button[aria-pressed="true"] {
+  background: #174f3e;
+  color: #fff;
+}
+.request-list {
+  display: grid;
+  gap: 16px;
+  margin: 20px 0;
+}
+.ride-request-card {
+  border: 1px solid #d7e3d1;
+  border-radius: 18px;
+  background: #fff;
+  padding: 24px;
+  overflow-wrap: anywhere;
+}
+.ride-request-card h3 {
+  font-size: 20px;
+  margin: 0;
+}
+.request-status {
+  display: inline-block;
+  font-size: 13px;
+  border-radius: 20px;
+  padding: 6px 12px;
+  background: #f2ead3;
+  color: #715b1b;
+  white-space: nowrap;
+}
+.request-status.cancelled {
+  background: #eee5df;
+  color: #81462e;
+}
+.request-confirm {
+  padding: 16px;
+  border: 1px solid #e8ded6;
+  border-radius: 12px;
+}
+.request-confirm button {
+  margin-top: 10px;
+}
+.request-changed {
+  padding: 12px;
+  background: #fff1e8;
+  color: #893c29;
+  border-radius: 8px;
+}
+@media (max-width: 650px) {
+  .request-tabs button {
+    flex: 1 1 auto;
+  }
+  .ride-request-card .trip-card-top {
+    flex-direction: column;
+  }
+}
+.request-status.accepted {
+  background: #dcefd9;
+  color: #215b39;
+}
+.request-status.rejected {
+  background: #eee1dc;
+  color: #81462e;
+}
+.decision-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+.decision-actions > button {
+  width: auto;
+}
+.decision-actions .request-confirm {
+  width: 100%;
+}
+.request-offer {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid #d7e3d1;
+  border-radius: 10px;
+}
+.request-offer summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.request-offer p {
+  white-space: pre-wrap;
+}

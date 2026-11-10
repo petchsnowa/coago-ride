@@ -21,7 +21,10 @@
     "test:auth:integration": "tsx --env-file-if-exists=.env scripts/auth-integration.ts",
     "test:auth:workers": "tsx --env-file-if-exists=.env scripts/auth-workers.ts",
     "test:trips:integration": "tsx --env-file-if-exists=.env scripts/trips-integration.ts",
-    "test:discovery:integration": "tsx --env-file-if-exists=.env scripts/discovery-integration.ts"
+    "test:discovery:integration": "tsx --env-file-if-exists=.env scripts/discovery-integration.ts",
+    "test:requests:integration": "tsx --env-file-if-exists=.env scripts/ride-requests-integration.ts",
+    "test:decisions:integration": "tsx --env-file-if-exists=.env scripts/decisions-integration.ts",
+    "test:decisions:upgrade": "tsx --env-file-if-exists=.env scripts/decisions-upgrade.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261108.1",

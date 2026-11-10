@@ -1,9 +1,16 @@
+import RideRequestsPanel from "./RideRequestsPanel";
+import { useCallback } from "react";
 import { useEffect, useRef, useState } from "react";
 import { readySchema, type AuthState } from "@coago/contracts";
 import AuthPanel from "./AuthPanel";
 import TripsPanel from "./TripsPanel";
 import SearchTrips from "./SearchTrips";
 export default function App() {
+  const [requestRevision, setRequestRevision] = useState(0);
+  const requestsChanged = useCallback(
+    () => setRequestRevision((value) => value + 1),
+    [],
+  );
   const [account, setAccount] = useState<AuthState | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",
@@ -38,34 +45,29 @@ export default function App() {
         <a href="/">
           COAGO<span>ไปด้วยกัน</span>
         </a>
-        <span className="badge">กำลังพัฒนา</span>
-      </nav>
-      <section className="hero">
-        <p className="eyebrow">เส้นทางเดียวกัน ไปด้วยกันได้</p>
-        <h1>
-          ต่างจังหวัด
-          <br />
-          ใกล้กันกว่าเดิม<span>.</span>
-        </h1>
-        <p className="intro">
-          เชื่อมคนที่อยากเดินทาง กับคนที่มีที่นั่งว่าง
-          <br />
-          ให้ทุกเส้นทางมีเพื่อนร่วมทาง
-        </p>
-        <div className="road" aria-hidden="true">
-          <span>ต้นทาง</span>
-          <i>➜</i>
-          <span>จุดหมายเดียวกัน</span>
+        <div className="header-links">
+          <a href="#search-form">ค้นหาเที่ยว</a>
+          <a href="#trips-title">เที่ยวของฉัน</a>
+          <span className="badge">เว็บทดสอบ</span>
         </div>
-      </section>
-      <SearchTrips />
+      </nav>
+      <SearchTrips
+        account={account}
+        onRequestChange={requestsChanged}
+        revision={requestRevision}
+      />
       <AuthPanel onAccountChange={setAccount} />
-      <TripsPanel account={account} />
+      <RideRequestsPanel
+        account={account}
+        revision={requestRevision}
+        onChange={requestsChanged}
+      />
+      <TripsPanel account={account} revision={requestRevision} />
       <section className="system" aria-labelledby="system-title">
         <div>
           <p className="eyebrow">เริ่มต้นไปด้วยกัน</p>
           <h2 id="system-title">เรากำลังเตรียม COAGO ให้พร้อม</h2>
-          <p>ระยะที่ 2: ค้นหาและประกาศเที่ยว ยังไม่เปิดรับจอง</p>
+          <p>ระยะที่ 2: ทดสอบคำขอร่วมเดินทาง ยังไม่ยืนยันที่นั่ง</p>
         </div>
         <div className="check">
           <button onClick={check} disabled={status === "loading"}>

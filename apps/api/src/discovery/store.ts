@@ -1,5 +1,5 @@
 import { encodeDiscoveryCursor } from "./cursor";
-import { and, asc, eq, gt, gte, lt, or } from "drizzle-orm";
+import { and, asc, eq, gt, gte, lt, or, sql } from "drizzle-orm";
 import { trips, withDatabase } from "@coago/db";
 import {
   bangkokDayRange,
@@ -15,7 +15,7 @@ const summaryColumns = {
   originProvince: trips.originProvince,
   destinationProvince: trips.destinationProvince,
   departureAt: trips.departureAt,
-  seats: trips.seats,
+  seats: sql<number>`${trips.seats}-${trips.bookedSeats}`,
   vehicleModel: trips.vehicleModel,
   vehicleColor: trips.vehicleColor,
   contributionSatang: trips.contributionSatang,
@@ -24,9 +24,10 @@ const available = (now: Date) =>
   and(
     eq(trips.status, "active"),
     gt(trips.departureAt, now),
-    gt(trips.seats, 0),
+    lt(trips.bookedSeats, trips.seats),
   );
 export interface DiscoveryStore {
+  upcoming(now: Date): Promise<PublicTripList>;
   search(
     input: TripSearch,
     now: Date,
@@ -36,6 +37,25 @@ export interface DiscoveryStore {
 }
 export function postgresDiscoveryStore(url: string): DiscoveryStore {
   return {
+    async upcoming(now) {
+      return withDatabase(url, async (db) => {
+        const rows = await db
+          .select(summaryColumns)
+          .from(trips)
+          .where(available(now))
+          .orderBy(asc(trips.departureAt), asc(trips.id))
+          .limit(6);
+        return {
+          trips: rows.map((row) =>
+            publicTripSummarySchema.parse({
+              ...row,
+              departureAt: row.departureAt.toISOString(),
+            }),
+          ),
+          nextCursor: null,
+        };
+      });
+    },
     async search(input, now, cursor) {
       const { start, end } = bangkokDayRange(input.date);
       return withDatabase(url, async (db) => {

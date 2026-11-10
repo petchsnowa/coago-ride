@@ -12,7 +12,8 @@ import { postgresAuthStore } from "../apps/api/src/auth/store";
 import { hash } from "../apps/api/src/auth/crypto";
 const url = testDatabaseUrl(),
   subject = "U" + randomBytes(16).toString("hex"),
-  otherSubject = "U" + randomBytes(16).toString("hex");
+  otherSubject = "U" + randomBytes(16).toString("hex"),
+  thirdSubject = "U" + randomBytes(16).toString("hex");
 const runtime = new Miniflare({
   modules: true,
   scriptPath: "apps/api/dist/index.js",
@@ -99,6 +100,15 @@ try {
     new Date(now.getTime() + 600000),
     now,
   );
+  const thirdToken = randomBytes(32).toString("hex"),
+    thirdCsrf = randomBytes(32).toString("hex");
+  await postgresAuthStore(url).createSession(
+    { subject: thirdSubject, displayName: "Second runtime passenger" },
+    await hash(thirdToken),
+    thirdCsrf,
+    new Date(now.getTime() + 600000),
+    now,
+  );
   await tripSmoke(
     async (path, method, actor, body, origin = "https://coago.test") =>
       runtime.dispatchFetch(`https://coago.test${path}`, {
@@ -115,9 +125,10 @@ try {
       }),
     { cookie: sessionCookie, csrfToken: data.csrfToken },
     { cookie: `__Host-coago_session=${otherToken}`, csrfToken: otherCsrf },
+    { cookie: `__Host-coago_session=${thirdToken}`, csrfToken: thirdCsrf },
   );
   console.log(
-    "PASS Workers trip CRUD with real PostgreSQL, two synthetic sessions, owner isolation, CSRF and version conflicts",
+    "PASS Workers trip CRUD with real PostgreSQL, three synthetic sessions, owner isolation, CSRF and version conflicts",
   );
   const logout = await runtime.dispatchFetch(
     "https://coago.test/api/auth/logout",
@@ -147,8 +158,8 @@ try {
     await runtime.dispose();
     await withDatabase(url, async (_db, client) => {
       await client.query(
-        "DELETE FROM users WHERE id IN (SELECT user_id FROM external_identities WHERE provider=$1 AND subject IN ($2,$3))",
-        ["line", subject, otherSubject],
+        "DELETE FROM users WHERE id IN (SELECT user_id FROM external_identities WHERE provider=$1 AND subject IN ($2,$3,$4))",
+        ["line", subject, otherSubject, thirdSubject],
       );
     });
   } finally {

@@ -1,3 +1,7 @@
+import {
+  rideRequestRoutes,
+  type RideRequestDependencies,
+} from "./requests/routes";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { checkDatabase } from "@coago/db";
@@ -15,6 +19,7 @@ export function createApp(
   authDependencies: Partial<AuthDependencies> = {},
   tripDependencies: Partial<TripDependencies> = {},
   discoveryDependencies: Partial<DiscoveryDependencies> = {},
+  requestDependencies: Partial<RideRequestDependencies> = {},
 ) {
   const app = new Hono<{ Bindings: Bindings }>();
   app.use("*", async (c, next) => {
@@ -49,6 +54,16 @@ export function createApp(
     }
   });
   app.route("/api/auth", authRoutes(authDependencies));
+  app.route(
+    "/api/ride-requests",
+    rideRequestRoutes({
+      ...requestDependencies,
+      ...(authDependencies.store ? { authStore: authDependencies.store } : {}),
+      ...(authDependencies.now && !requestDependencies.now
+        ? { now: authDependencies.now }
+        : {}),
+    }),
+  );
   app.route("/api/discovery/trips", discoveryRoutes(discoveryDependencies));
   app.route(
     "/api/trips",

@@ -1,5 +1,5 @@
 import { and, desc, eq, gt, lt, or, sql } from "drizzle-orm";
-import { withDatabase, trips } from "@coago/db";
+import { withDatabase, trips, rideRequests } from "@coago/db";
 import {
   tripSchema,
   type Trip,
@@ -16,7 +16,8 @@ export type TripErrorCode =
   | "trip_conflict"
   | "trip_not_editable"
   | "departure_in_past"
-  | "request_reused";
+  | "request_reused"
+  | "bookings_locked";
 export class TripError extends Error {
   constructor(public code: TripErrorCode) {
     super(code);
@@ -66,6 +67,7 @@ function dto(row: typeof trips.$inferSelect): Trip {
     pickupPoint: row.pickupPoint,
     dropoffPoint: row.dropoffPoint,
     seats: row.seats,
+    bookedSeats: row.bookedSeats,
     vehicleModel: row.vehicleModel,
     vehicleColor: row.vehicleColor,
     contributionSatang: row.contributionSatang,
@@ -85,6 +87,7 @@ function checkEditable(
   if (!row) throw new TripError("trip_not_found");
   if (row.status !== "active") throw new TripError("trip_not_editable");
   if (row.departureAt <= now) throw new TripError("departure_in_past");
+  if (row.bookedSeats > 0) throw new TripError("bookings_locked");
   throw new TripError("trip_conflict");
 }
 function ownerTrip(owner: string, id: string) {
@@ -194,6 +197,7 @@ export function postgresTripStore(url: string): TripStore {
               ownerTrip(owner, id),
               eq(trips.version, input.version),
               eq(trips.status, "active"),
+              eq(trips.bookedSeats, 0),
               gt(trips.departureAt, now),
             ),
           )
@@ -207,36 +211,53 @@ export function postgresTripStore(url: string): TripStore {
       });
     },
     async cancel(owner, id, input, now) {
-      return withDatabase(url, async (db) => {
-        const rows = await db
-          .update(trips)
-          .set({
-            status: "cancelled",
-            cancellationReason: input.reason,
-            version: sql`${trips.version}+1`,
-            updatedAt: now,
-          })
-          .where(
-            and(
-              ownerTrip(owner, id),
-              eq(trips.version, input.version),
-              eq(trips.status, "active"),
-              gt(trips.departureAt, now),
-            ),
+      return withDatabase(url, async (db) =>
+        db.transaction(async (tx) => {
+          const rows = await tx
+            .update(trips)
+            .set({
+              status: "cancelled",
+              bookedSeats: 0,
+              cancellationReason: input.reason,
+              version: sql`${trips.version}+1`,
+              updatedAt: now,
+            })
+            .where(
+              and(
+                ownerTrip(owner, id),
+                eq(trips.version, input.version),
+                eq(trips.status, "active"),
+                gt(trips.departureAt, now),
+              ),
+            )
+            .returning();
+          if (rows[0]) {
+            await tx
+              .update(rideRequests)
+              .set({ status: "cancelled", updatedAt: now })
+              .where(
+                and(
+                  eq(rideRequests.tripId, id),
+                  or(
+                    eq(rideRequests.status, "pending"),
+                    eq(rideRequests.status, "accepted"),
+                  ),
+                ),
+              );
+            return dto(rows[0]);
+          }
+          const [existing] = await tx
+            .select()
+            .from(trips)
+            .where(ownerTrip(owner, id));
+          if (
+            existing?.status === "cancelled" &&
+            existing.cancellationReason === input.reason
           )
-          .returning();
-        if (rows[0]) return dto(rows[0]);
-        const [existing] = await db
-          .select()
-          .from(trips)
-          .where(ownerTrip(owner, id));
-        if (
-          existing?.status === "cancelled" &&
-          existing.cancellationReason === input.reason
-        )
-          return dto(existing);
-        return checkEditable(existing, now);
-      });
+            return dto(existing);
+          return checkEditable(existing, now);
+        }),
+      );
     },
   };
 }

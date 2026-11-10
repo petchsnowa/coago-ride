@@ -20,16 +20,18 @@ export const tripSearchSchema = z
     message: "ต้นทางและปลายทางต้องเป็นคนละจังหวัด",
     path: ["destinationProvince"],
   });
-export const publicTripSummarySchema = tripSchema.pick({
-  id: true,
-  originProvince: true,
-  destinationProvince: true,
-  departureAt: true,
-  seats: true,
-  vehicleModel: true,
-  vehicleColor: true,
-  contributionSatang: true,
-});
+export const publicTripSummarySchema = tripSchema
+  .pick({
+    id: true,
+    originProvince: true,
+    destinationProvince: true,
+    departureAt: true,
+    seats: true,
+    vehicleModel: true,
+    vehicleColor: true,
+    contributionSatang: true,
+  })
+  .extend({ seats: z.number().int().min(0).max(8) });
 export const publicTripDetailSchema = publicTripSummarySchema
   .extend({
     pickupPoint: tripSchema.shape.pickupPoint,

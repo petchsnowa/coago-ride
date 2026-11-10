@@ -6,6 +6,12 @@ async function prepare(page: Page, dropFirstResponse = false) {
   let trips: Record<string, unknown>[] = [],
     first = true;
   const requests: string[] = [];
+  await page.route("**/api/ride-requests/**", (r) =>
+    r.fulfill({ json: { requests: [], nextCursor: null } }),
+  );
+  await page.route("**/api/discovery/trips/upcoming", (r) =>
+    r.fulfill({ json: { trips: [], nextCursor: null } }),
+  );
   await page.route("**/api/auth/me", (route) =>
     route.fulfill({
       json: {
