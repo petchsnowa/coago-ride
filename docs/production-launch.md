@@ -81,3 +81,19 @@ pnpm release:check https://coago.space
 ## ผลตรวจเครื่องมือรอบนี้
 
 10พ.ย.2026 รัน `release:check` กับ COAGO Test ผ่าน9รายการจริง (TLS verification เปิดอยู่; workspace ใช้ `NODE_USE_ENV_PROXY=1` ตาม proxy ของ environment) ไม่มี write/session/OAuth flow จาก checker เพิ่ม15 unit cases ตรวจ false positives เช่น private API หลุด200, public identity field, full/expired trips, permissive CORS, cross-origin assets และ network failures
+
+## ตรวจรอบหลัง PR #7 merged
+
+10พ.ย.2026 เจ้าของยืนยันว่า PostGIS ใน coago-production รันสำเร็จแล้ว และ coago-test เดิมยังอยู่โดยไม่เปลี่ยนรหัสผ่าน เป็น owner-reported evidence ยังไม่ได้ยืนยัน Direct connection ของ production จาก runner
+
+ตรวจ HTTPS ของ coago.space และ www.coago.space ได้ HTTP521 (TLS verificationผ่าน) DNS NS เป็น chance.ns.cloudflare.com และ georgia.ns.cloudflare.com ข้อมูลนี้ไม่ยืนยันค่า DNS record/Worker routes หลัง Cloudflare หรือสาเหตุ origin ที่แน่นอน ยังไม่เปลี่ยนค่าใด เว็บ staging เปิด assets/auth ได้ แต่ health/ready และ public upcoming เป็น503ซ้ำ ต้องตรวจ Direct DB และ Hyperdrive ต่อ ไม่ถือว่าพร้อม production
+
+เพิ่ม workflow `Database readiness (read only)` เพื่อวินิจฉัย:
+
+- push เฉพาะ branch codex/database-readiness ตรวจ test Direct DB ด้วย BEGIN READ ONLY และ GET metadata ของ Worker coago-line-test/Hyperdrive เดิม ไม่ deploy/update/create resource, ไม่ migrate และไม่อ่านข้อมูลผู้ใช้เป็นรายแถว
+- หลังไฟล์เข้า main: Actions → Database readiness (read only) → Run workflow → target production → project_confirmation `coago-production` ตรวจเฉพาะ production Direct DB ใน read-only transaction
+- Production run ต้องเลือก main และใช้ GitHub Environment `production`: secret `COAGO_PRODUCTION_DATABASE_URL`, variables `COAGO_PRODUCTION_DATABASE_HOST` (Direct hostnameเท่านั้น) และ `COAGO_PRODUCTION_DATABASE_NAME` (ชื่อฐานเช่น neondb) พร้อม repository test secret เดิมเพื่อป้องกันชี้ host test ซ้ำ
+- สคริปต์ตรวจ host/databaseตรงค่าที่เจ้าของตรวจจาก Neon Console แต่ไม่สามารถพิสูจน์ชื่อ project/branch ด้วย Neon API ต้องตรวจว่า Connect เปิดจาก coago-production ก่อนบันทึก secret
+- ไม่ใช้ DATABASE_URL fallback, ไม่รับ pooler/unencrypted TLS/portอื่น และตรวจ TLS certificate จริง แสดงเพียง version/จำนวนตารางแอป/จำนวน migrations ไม่มี URL/password/rows ข้อผิดพลาดแสดงเฉพาะcodeที่กรองแล้ว
+
+ตั้งค่าที่ repository → Settings → Environments → New environment → production แล้ว Add environment secret/variables ตามชื่อข้างต้น คัดลอกเฉพาะ URL `postgresql://...` จาก Neon Connect → Direct ไม่คัดลอกคำสั่ง psql ทั้งบรรทัดและไม่ส่ง URL ลง chat หลังตรวจเชื่อมสำเร็จจึงเตรียม production migration/bootstrap เป็นขั้นแยกที่ review ได้ ไม่มี production migration ใน workflow นี้
