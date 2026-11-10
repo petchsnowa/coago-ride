@@ -523,17 +523,20 @@ footer {
   background: rgb(19 47 42 / 50%);
 }
 .detail-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
 }
 .detail-header h2 {
+  min-width: 0;
   font-size: 22px;
   margin: 0;
 }
 .detail-header button {
-  flex-shrink: 0;
+  width: auto;
+  max-width: 100%;
+  justify-self: end;
 }
 .public-trip-detail {
   padding-top: 20px;
@@ -553,8 +556,12 @@ footer {
     padding: 18px;
   }
   .detail-header {
-    align-items: flex-start;
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  .detail-header button {
+    width: 100%;
+    justify-self: stretch;
   }
 }
 

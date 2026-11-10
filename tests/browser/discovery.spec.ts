@@ -170,3 +170,43 @@ test("invalid route does not send a search request", async ({ page }) => {
   await expect(page.getByRole("alert")).toContainText("กรุณาเลือกเส้นทาง");
   expect(state.queries).toHaveLength(0);
 });
+
+test("detail header and close button fit across responsive breakpoints", async ({
+  page,
+}) => {
+  await prepare(page);
+  await search(page);
+  await page.getByRole("button", { name: /^ดูรายละเอียดเที่ยว/ }).click();
+  const dialog = page.getByRole("dialog", { name: "รายละเอียดเที่ยวเดินทาง" });
+  await expect(dialog).toContainText("สถานีต้นทาง");
+  for (const width of [390, 640, 641, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const layout = await dialog.evaluate((element) => {
+      const header = element.querySelector<HTMLElement>(".detail-header")!;
+      const title = header.querySelector("h2")!.getBoundingClientRect();
+      const close = header.querySelector("button")!.getBoundingClientRect();
+      const bounds = header.getBoundingClientRect();
+      return {
+        fits: header.scrollWidth <= header.clientWidth + 1,
+        titleWidth: title.width,
+        inside:
+          close.left >= bounds.left - 1 && close.right <= bounds.right + 1,
+      };
+    });
+    expect(layout.fits, `header overflow at ${width}px`).toBe(true);
+    expect(layout.inside, `close button outside header at ${width}px`).toBe(
+      true,
+    );
+    expect(layout.titleWidth, `title compressed at ${width}px`).toBeGreaterThan(
+      150,
+    );
+    if (width === 390 || width === 1440)
+      await dialog.screenshot({
+        path: test.info().outputPath(`detail-${width}.png`),
+      });
+  }
+  await dialog
+    .getByRole("button", { name: "ปิดรายละเอียด", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+});

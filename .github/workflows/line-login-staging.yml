@@ -7,6 +7,7 @@ on:
         codex/phase-2-line-login,
         codex/phase-2b-trip-posting,
         codex/phase-2c-trip-search,
+        codex/fix-trip-detail-layout,
       ]
     paths:
       - .github/workflows/line-login-staging.yml
