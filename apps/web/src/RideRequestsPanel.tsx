@@ -5,7 +5,7 @@ import {
   type AuthState,
   type RideRequest,
 } from "@coago/contracts";
-import { rideApi, RideApiError } from "./rideRequestsApi";
+import { rideApi, RideApiError, requestStatusLabel } from "./rideRequestsApi";
 import { tripTime } from "./TripSummaryCard";
 export default function RideRequestsPanel({
   account,
@@ -24,15 +24,6 @@ export default function RideRequestsPanel({
       onChange={onChange}
     />
   ) : null;
-}
-function label(request: RideRequest) {
-  return request.status === "cancelled"
-    ? "ยกเลิกคำขอแล้ว"
-    : request.trip.status === "cancelled"
-      ? "เที่ยวยกเลิกแล้ว"
-      : Date.parse(request.trip.departureAt) <= Date.now()
-        ? "เที่ยวออกเดินทางแล้ว"
-        : "รอตอบรับ";
 }
 function PrivateRequests({
   csrf,
@@ -181,7 +172,7 @@ function PrivateRequests({
                 {request.trip.destinationProvince}
               </h3>
               <span className={`request-status ${request.status}`}>
-                {label(request)}
+                {requestStatusLabel(request)}
               </span>
             </div>
             <p>{tripTime(request.trip.departureAt)} น. (เวลาไทย)</p>

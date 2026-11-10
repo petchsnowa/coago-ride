@@ -210,3 +210,27 @@ test("trip closing during submission disables another request", async ({
     }),
   ).toHaveCount(0);
 });
+
+test("replayed pending request on a cancelled trip never claims it is waiting for acceptance", async ({
+  page,
+}) => {
+  await prepare(page);
+  await page.route("**/api/ride-requests", (r) =>
+    r.fulfill({
+      status: 200,
+      json: {
+        request: { ...fixture, trip: { ...fixture.trip, status: "cancelled" } },
+      },
+    }),
+  );
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByRole("button", { name: "ส่งคำขอร่วมเดินทาง 1 ที่นั่ง", exact: true })
+    .click();
+  await expect(dialog.locator(".request-status")).toHaveText(
+    "เที่ยวยกเลิกแล้ว",
+  );
+  await expect(dialog).toContainText(
+    "คำขอยังอยู่ในประวัติ แต่เที่ยวไม่พร้อมให้ร่วมเดินทางแล้ว",
+  );
+});

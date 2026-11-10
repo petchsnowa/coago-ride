@@ -1,3 +1,4 @@
+import type { RideRequest } from "@coago/contracts";
 export const requestMessages: Record<string, string> = {
   unauthorized: "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่",
   forbidden: "สิทธิ์เปลี่ยน กรุณารีเฟรชหน้าแล้วลองใหม่",
@@ -42,4 +43,14 @@ export async function rideApi(
       typeof data?.error === "string" ? data.error : "network",
     );
   return data;
+}
+
+export function requestStatusLabel(request: RideRequest, now = Date.now()) {
+  return request.status === "cancelled"
+    ? "ยกเลิกคำขอแล้ว"
+    : request.trip.status === "cancelled"
+      ? "เที่ยวยกเลิกแล้ว"
+      : Date.parse(request.trip.departureAt) <= now
+        ? "เที่ยวออกเดินทางแล้ว"
+        : "รอตอบรับ";
 }

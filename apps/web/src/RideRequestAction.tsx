@@ -5,7 +5,7 @@ import {
   type AuthState,
   type RideRequestContext,
 } from "@coago/contracts";
-import { rideApi, RideApiError } from "./rideRequestsApi";
+import { rideApi, RideApiError, requestStatusLabel } from "./rideRequestsApi";
 export default function RideRequestAction({
   account,
   tripId,
@@ -126,8 +126,16 @@ function AuthenticatedRequest({
         </p>
       ) : context?.request?.status === "pending" ? (
         <div>
-          <strong className="request-status pending">รอตอบรับ</strong>
-          <p role="status">ส่งคำขอ 1 ที่นั่งแล้ว · ยังไม่ได้ยืนยันที่นั่ง</p>
+          <strong
+            className={`request-status ${requestStatusLabel(context.request) === "รอตอบรับ" ? "pending" : "cancelled"}`}
+          >
+            {requestStatusLabel(context.request)}
+          </strong>
+          <p role="status">
+            {requestStatusLabel(context.request) === "รอตอบรับ"
+              ? "ส่งคำขอ 1 ที่นั่งแล้ว · ยังไม่ได้ยืนยันที่นั่ง"
+              : "คำขอยังอยู่ในประวัติ แต่เที่ยวไม่พร้อมให้ร่วมเดินทางแล้ว"}
+          </p>
           <p>ดูและยกเลิกได้ใน «คำขอของฉัน» หลังปิดรายละเอียด</p>
         </div>
       ) : context?.canRequest ? (

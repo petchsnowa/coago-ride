@@ -1,3 +1,4 @@
+import { requestStatusLabel } from "../apps/web/src/rideRequestsApi";
 import { beforeEach, expect, it, vi } from "vitest";
 import { createApp } from "../apps/api/src/index";
 import { postgresAuthStore } from "../apps/api/src/auth/store";
@@ -58,12 +59,10 @@ beforeEach(() => {
       .mockResolvedValue({ isOwner: false, canRequest: true, request: null }),
   };
   auth = postgresAuthStore("unused");
-  auth.getSession = vi
-    .fn()
-    .mockResolvedValue({
-      user: { id: actor, displayName: "Tester" },
-      csrfToken: "b".repeat(64),
-    });
+  auth.getSession = vi.fn().mockResolvedValue({
+    user: { id: actor, displayName: "Tester" },
+    csrfToken: "b".repeat(64),
+  });
   app = createApp(
     undefined,
     { store: () => auth, now: () => now },
@@ -191,4 +190,20 @@ it("rejects accidental private fields at response boundary", () => {
   expect(
     rideRequestSchema.safeParse({ ...request, passengerId: actor }).success,
   ).toBe(false);
+});
+
+it("pending history displays unavailable when the trip closes or departs", () => {
+  expect(requestStatusLabel(request, now.getTime())).toBe("รอตอบรับ");
+  expect(
+    requestStatusLabel({ ...request, status: "cancelled" }, now.getTime()),
+  ).toBe("ยกเลิกคำขอแล้ว");
+  expect(
+    requestStatusLabel(
+      { ...request, trip: { ...request.trip, status: "cancelled" } },
+      now.getTime(),
+    ),
+  ).toBe("เที่ยวยกเลิกแล้ว");
+  expect(
+    requestStatusLabel(request, Date.parse(request.trip.departureAt)),
+  ).toBe("เที่ยวออกเดินทางแล้ว");
 });

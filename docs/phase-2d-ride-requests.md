@@ -18,6 +18,8 @@ API: /api/ride-requests/mine และ /incoming (owner-onlyผ่านsession,
 
 ## Verification
 
-Local: unit/API/contractรวม133testsผ่าน; browserรวม38รายการทั้งเดิมและnewrequestflowผ่านทั้งdesktop/mobile (mockAPI) รวมcreate/pending/reload/cancel/logout,driverincoming/own-tripguard และlostresponseใช้keyเดิม PostgreSQLจริง17.11/PostGIS3.5.7: concurrent same-keyและdifferent-key,actor isolation,request replayหลังcancel,resubmit,trip cancel race,tripChanged,no seat mutation,DBconstraints,pagination ผ่าน LocalWorkersจริงตรวจหลายฝ่ายผ่านauth/session/pgTCP โดยจำลองเฉพาะLINEtoken/verify
+Local: unit/API/contractรวม134testsผ่าน; browserรวม40รายการทั้งเดิมและnewrequestflowผ่านทั้งdesktop/mobile (mockAPI) รวมcreate/pending/reload/cancel/logout,driverincoming/own-tripguard และlostresponseใช้keyเดิม PostgreSQLจริง17.11/PostGIS3.5.7: concurrent same-keyและdifferent-key,actor isolation,request replayหลังcancel,resubmit,trip cancel race,tripChanged,no seat mutation,DBconstraints,pagination ผ่าน LocalWorkersจริงตรวจหลายฝ่ายผ่านauth/session/pgTCP โดยจำลองเฉพาะLINEtoken/verify
 
 Run links/CI/remoteผลจริงดูในPR #6 ต้องตรวจ remoteWorkers→Hyperdrive→Neon ก่อนอ้างว่า remoteผ่าน ใช้synthetic sessionsไม่ใช่realLINEหลายบัญชีของเจ้าของ; manualจริงยังรอเจ้าของลองด้วยLINE2บัญชี เก็บข้อมูลtestภายใต้auto-deleteเดิม ไม่มีproductionchanges
+
+คำขอpendingที่tripยกเลิก/ออกเดินทางแล้วต้องแสดงสถานะเที่ยวไม่พร้อมทั้งdialogและรายการส่วนตัว แม้responseเป็นการreplayของคำขอเก่า ไม่แสดงว่ารอตอบรับเที่ยวที่ปิดไปแล้ว
