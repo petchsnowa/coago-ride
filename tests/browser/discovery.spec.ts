@@ -21,6 +21,8 @@ async function prepare(
   );
   await page.route("**/api/discovery/trips**", async (route) => {
     const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/upcoming"))
+      return route.fulfill({ json: { trips: [], nextCursor: null } });
     if (url.pathname.endsWith(`/${id}`)) {
       if (mode === "stale")
         return route.fulfill({
@@ -209,4 +211,70 @@ test("detail header and close button fit across responsive breakpoints", async (
     .getByRole("button", { name: "ปิดรายละเอียด", exact: true })
     .click();
   await expect(dialog).not.toBeVisible();
+});
+
+test("header shows real upcoming statuses and summaries without searching", async ({
+  page,
+}) => {
+  await prepare(page);
+  await page.route("**/api/discovery/trips/upcoming", (r) =>
+    r.fulfill({ json: { trips: [trip], nextCursor: null } }),
+  );
+  await page.reload();
+  const card = page.locator(".upcoming-card");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "รายการเที่ยวเดินทาง",
+  );
+  await expect(card).toContainText("เปิดประกาศ");
+  await expect(card).toContainText("กรุงเทพมหานคร");
+  await expect(card).toContainText("10:30");
+  await expect(card).toContainText("3 ที่นั่ง");
+  await expect(card).toContainText("100.25 บาท/คน");
+  const box = await card.boundingBox();
+  expect(box!.y).toBeLessThan(700);
+  await card.getByRole("button", { name: /^ดูรายละเอียดเที่ยว/ }).click();
+  await expect(page.getByRole("dialog")).toContainText("สถานีต้นทาง");
+  await page.screenshot({ path: test.info().outputPath("header-detail.png") });
+  await page
+    .getByRole("button", { name: "ปิดรายละเอียด", exact: true })
+    .click();
+  await page.screenshot({
+    path: test.info().outputPath("trip-header.png"),
+    fullPage: true,
+  });
+  await search(page);
+  await expect(page.locator(".upcoming-card")).toHaveCount(0);
+  await expect(page.locator(".search-card")).toHaveCount(1);
+  await page
+    .getByRole("button", {
+      name: "กลับไปดูเที่ยวที่กำลังจะออกเดินทาง",
+      exact: true,
+    })
+    .click();
+  await expect(page.locator(".upcoming-card")).toHaveCount(1);
+  await expect(page.locator(".search-card")).toHaveCount(0);
+});
+test("header has honest empty, error and retry states", async ({ page }) => {
+  await prepare(page);
+  await expect(
+    page.getByText("ยังไม่มีเที่ยวเปิดประกาศในขณะนี้ ลองกลับมาตรวจอีกครั้ง"),
+  ).toBeVisible();
+  let fail = true;
+  await page.route("**/api/discovery/trips/upcoming", (r) => {
+    if (fail) {
+      fail = false;
+      return r.fulfill({ status: 503 });
+    }
+    return r.fulfill({ json: { trips: [trip], nextCursor: null } });
+  });
+  await page
+    .getByRole("button", { name: "โหลดเที่ยวล่าสุด", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText(
+    "โหลดรายการเที่ยวไม่สำเร็จ",
+  );
+  await page
+    .getByRole("button", { name: "ลองโหลดรายการอีกครั้ง", exact: true })
+    .click();
+  await expect(page.locator(".upcoming-card")).toHaveCount(1);
 });

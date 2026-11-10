@@ -106,6 +106,9 @@ export const trips = pgTable(
       .defaultNow(),
   },
   (t) => [
+    index("trips_upcoming_active_idx")
+      .on(t.departureAt, t.id)
+      .where(sql`${t.status}='active'`),
     uniqueIndex("trips_owner_request_idx").on(t.ownerId, t.requestId),
     index("trips_owner_created_idx").on(t.ownerId, t.createdAt, t.id),
     index("trips_search_active_idx")

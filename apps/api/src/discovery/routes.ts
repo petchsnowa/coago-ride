@@ -63,6 +63,15 @@ export function discoveryRoutes(
       ),
     );
   });
+  app.get("/upcoming", async (c) => {
+    if ([...new URL(c.req.url).searchParams.keys()].length)
+      return c.json({ error: "invalid_search" }, 400);
+    return c.json(
+      publicTripListSchema.parse(
+        await deps.store(databaseUrl(c.env)).upcoming(deps.now()),
+      ),
+    );
+  });
   app.get("/:id", async (c) => {
     const id = z.string().uuid().safeParse(c.req.param("id"));
     if (!id.success) return c.json({ error: "invalid_trip_id" }, 400);

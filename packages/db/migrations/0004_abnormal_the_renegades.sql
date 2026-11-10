@@ -1,0 +1,1 @@
+CREATE INDEX "trips_upcoming_active_idx" ON "trips" USING btree ("departure_at","id") WHERE "trips"."status"='active';

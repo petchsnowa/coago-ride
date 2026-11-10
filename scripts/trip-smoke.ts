@@ -52,6 +52,22 @@ export async function tripSmoke(
     date: toBangkokInput(trip.departureAt).slice(0, 10),
   });
   const publicPath = `/api/discovery/trips?${filters}`;
+  const upcomingResponse = await request(
+    "/api/discovery/trips/upcoming",
+    "GET",
+  );
+  assert.equal(upcomingResponse.status, 200);
+  const upcoming = publicTripListSchema.parse(await upcomingResponse.json());
+  assert(upcoming.trips.length <= 6);
+  assert.equal(upcoming.nextCursor, null);
+  for (let i = 1; i < upcoming.trips.length; i++)
+    assert(
+      `${upcoming.trips[i - 1].departureAt}:${upcoming.trips[i - 1].id}` <=
+        `${upcoming.trips[i].departureAt}:${upcoming.trips[i].id}`,
+    );
+  console.log(
+    "PASS public upcoming header list HTTP: anonymous, bounded six and ordered",
+  );
   const listed = await request(publicPath, "GET");
   assert.equal(listed.status, 200, "PUBLIC_SEARCH_HTTP_FAILED");
   const publicList = publicTripListSchema.parse(await listed.json());

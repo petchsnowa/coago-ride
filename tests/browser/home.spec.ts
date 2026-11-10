@@ -8,9 +8,12 @@ test("home and readiness interaction", async ({ page }) => {
       json: { user: null, csrfToken: null, loginAvailable: true },
     }),
   );
+  await page.route("**/api/discovery/trips/upcoming", (r) =>
+    r.fulfill({ json: { trips: [], nextCursor: null } }),
+  );
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "ต่างจังหวัด",
+    "รายการเที่ยวเดินทาง",
   );
   await page.getByRole("button", { name: "ตรวจสถานะระบบ" }).click();
   await expect(

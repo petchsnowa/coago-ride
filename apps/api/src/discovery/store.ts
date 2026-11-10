@@ -27,6 +27,7 @@ const available = (now: Date) =>
     gt(trips.seats, 0),
   );
 export interface DiscoveryStore {
+  upcoming(now: Date): Promise<PublicTripList>;
   search(
     input: TripSearch,
     now: Date,
@@ -36,6 +37,25 @@ export interface DiscoveryStore {
 }
 export function postgresDiscoveryStore(url: string): DiscoveryStore {
   return {
+    async upcoming(now) {
+      return withDatabase(url, async (db) => {
+        const rows = await db
+          .select(summaryColumns)
+          .from(trips)
+          .where(available(now))
+          .orderBy(asc(trips.departureAt), asc(trips.id))
+          .limit(6);
+        return {
+          trips: rows.map((row) =>
+            publicTripSummarySchema.parse({
+              ...row,
+              departureAt: row.departureAt.toISOString(),
+            }),
+          ),
+          nextCursor: null,
+        };
+      });
+    },
     async search(input, now, cursor) {
       const { start, end } = bangkokDayRange(input.date);
       return withDatabase(url, async (db) => {

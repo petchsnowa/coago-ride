@@ -38,26 +38,12 @@ export default function App() {
         <a href="/">
           COAGO<span>ไปด้วยกัน</span>
         </a>
-        <span className="badge">กำลังพัฒนา</span>
-      </nav>
-      <section className="hero">
-        <p className="eyebrow">เส้นทางเดียวกัน ไปด้วยกันได้</p>
-        <h1>
-          ต่างจังหวัด
-          <br />
-          ใกล้กันกว่าเดิม<span>.</span>
-        </h1>
-        <p className="intro">
-          เชื่อมคนที่อยากเดินทาง กับคนที่มีที่นั่งว่าง
-          <br />
-          ให้ทุกเส้นทางมีเพื่อนร่วมทาง
-        </p>
-        <div className="road" aria-hidden="true">
-          <span>ต้นทาง</span>
-          <i>➜</i>
-          <span>จุดหมายเดียวกัน</span>
+        <div className="header-links">
+          <a href="#search-form">ค้นหาเที่ยว</a>
+          <a href="#trips-title">เที่ยวของฉัน</a>
+          <span className="badge">เว็บทดสอบ</span>
         </div>
-      </section>
+      </nav>
       <SearchTrips />
       <AuthPanel onAccountChange={setAccount} />
       <TripsPanel account={account} />

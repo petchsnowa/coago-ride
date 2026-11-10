@@ -117,3 +117,5 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 ## ค้นหาเที่ยว Phase 2C
 
 ค้นหาต้นทาง/ปลายทาง/วันเดินทางและดูรายละเอียดโดยไม่ต้อง login ใช้เฉพาะเที่ยวที่ยังเปิดและอยู่ในอนาคต ดู [คู่มือและ public data contract](docs/phase-2c-discovery.md) และ [ผลตรวจ](docs/verification-phase-2c.md) เพิ่มคำสั่ง `pnpm test:discovery:integration` หลัง migrate เพื่อทดสอบจริงบนฐาน local/test; ยังไม่มี booking/payments
+
+ส่วนหัวหน้าเว็บแสดงเที่ยวเปิดประกาศที่กำลังจะออกเดินทางสูงสุด6เที่ยว พร้อมสถานะและรายละเอียดที่จำเป็นโดยอัตโนมัติ ดู [ขอบเขตและผลตรวจ](docs/trip-status-header.md)

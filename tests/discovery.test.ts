@@ -45,6 +45,7 @@ const env = { ENVIRONMENT: "test", DATABASE_URL: "test-only" };
 let store: DiscoveryStore, app: ReturnType<typeof createApp>;
 beforeEach(() => {
   store = {
+    upcoming: vi.fn().mockResolvedValue({ trips: [summary], nextCursor: null }),
     search: vi.fn().mockResolvedValue({ trips: [summary], nextCursor: null }),
     detail: vi.fn().mockResolvedValue(detail),
   };
@@ -206,4 +207,37 @@ it.each([
   expect(
     publicTripDetailSchema.safeParse({ ...detail, [key]: "private" }).success,
   ).toBe(false);
+});
+
+it("upcoming list is anonymous and uses the public projection", async () => {
+  const response = await app.request(
+    "https://coago.test/api/discovery/trips/upcoming",
+    {},
+    env,
+  );
+  expect(response.status).toBe(200);
+  expect(response.headers.get("cache-control")).toBe("no-store");
+  expect(await response.json()).toEqual({ trips: [summary], nextCursor: null });
+  expect(store.upcoming).toHaveBeenCalledWith(now);
+});
+it("upcoming cannot accept a caller-supplied limit or filters", async () => {
+  const response = await app.request(
+    "https://coago.test/api/discovery/trips/upcoming?limit=1000",
+    {},
+    env,
+  );
+  expect(response.status).toBe(400);
+  expect(store.upcoming).not.toHaveBeenCalled();
+});
+it("upcoming failures are generic and do not reveal database errors", async () => {
+  vi.mocked(store.upcoming).mockRejectedValue(
+    new Error("private database credential"),
+  );
+  const response = await app.request(
+    "https://coago.test/api/discovery/trips/upcoming",
+    {},
+    env,
+  );
+  expect(response.status).toBe(503);
+  expect(await response.json()).toEqual({ error: "service_unavailable" });
 });

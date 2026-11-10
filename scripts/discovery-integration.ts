@@ -62,6 +62,15 @@ try {
   );
   // Same departure times exercise the id tie-breaker; 23 matches -> 20 + 3.
   for (let i = 0; i < 21; i++) await create(draft.departureAt);
+  const upcoming = await store.upcoming(now);
+  assert.equal(upcoming.trips.length, 6);
+  assert.equal(upcoming.nextCursor, null);
+  assert.equal(upcoming.trips[0].id, before.id);
+  for (const trip of upcoming.trips) {
+    assert(Date.parse(trip.departureAt) > now.getTime());
+    assert(!("ownerId" in trip));
+    assert(![cancelled.id, expired.id].includes(trip.id));
+  }
   const first = await store.search(input, now);
   assert.equal(first.trips.length, 20);
   assert(first.nextCursor);
@@ -121,6 +130,7 @@ try {
     now,
   );
   assert.equal(await store.detail(start.id, now), undefined);
+  assert(!(await store.upcoming(now)).trips.some((t) => t.id === start.id));
   assert.equal(
     (await store.search({ ...input, date: "2030-01-05" }, now)).trips.length,
     0,
@@ -136,7 +146,7 @@ try {
   );
   assert(index?.includes("WHERE (status = 'active'::text)"));
   console.log(
-    "PASS discovery DB: Thai midnight boundaries, route/date/status/expiry, 20+3 keyset with equal times, public projection, stale detail and partial index",
+    "PASS discovery DB: upcoming six/time/status/projection, Thai midnight boundaries, route/date/status/expiry, 20+3 keyset with equal times, public projection, stale detail and partial index",
   );
 } finally {
   await withDatabase(url, async (_db, c) => {
