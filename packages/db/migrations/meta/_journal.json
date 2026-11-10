@@ -43,6 +43,13 @@
       "when": 1794288041146,
       "tag": "0005_natural_karma",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794291188987,
+      "tag": "0006_uneven_butterfly",
+      "breakpoints": true
     }
   ]
 }

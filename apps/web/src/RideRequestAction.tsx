@@ -124,17 +124,20 @@ function AuthenticatedRequest({
           คุณเป็นเจ้าของเที่ยวนี้ ดูคำขอที่เข้ามาได้ใน «คำขอร่วมเดินทาง»
           หลังปิดรายละเอียด
         </p>
-      ) : context?.request?.status === "pending" ? (
+      ) : context?.request &&
+        ["pending", "accepted"].includes(context.request.status) ? (
         <div>
           <strong
-            className={`request-status ${requestStatusLabel(context.request) === "รอตอบรับ" ? "pending" : "cancelled"}`}
+            className={`request-status ${["รอตอบรับ", "ตอบรับแล้ว"].includes(requestStatusLabel(context.request)) ? context.request.status : "cancelled"}`}
           >
             {requestStatusLabel(context.request)}
           </strong>
           <p role="status">
             {requestStatusLabel(context.request) === "รอตอบรับ"
               ? "ส่งคำขอ 1 ที่นั่งแล้ว · ยังไม่ได้ยืนยันที่นั่ง"
-              : "คำขอยังอยู่ในประวัติ แต่เที่ยวไม่พร้อมให้ร่วมเดินทางแล้ว"}
+              : requestStatusLabel(context.request) === "ตอบรับแล้ว"
+                ? "เจ้าของตอบรับ 1 ที่นั่งแล้ว ดูรายละเอียดและจุดนัดรับในคำขอของฉัน"
+                : "คำขอยังอยู่ในประวัติ แต่เที่ยวไม่พร้อมให้ร่วมเดินทางแล้ว"}
           </p>
           <p>ดูและยกเลิกได้ใน «คำขอของฉัน» หลังปิดรายละเอียด</p>
         </div>

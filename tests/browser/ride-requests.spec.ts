@@ -14,8 +14,17 @@ const trip = {
 };
 const fixture = {
   id,
-  status: "pending" as "pending" | "cancelled",
+  status: "pending" as "pending" | "accepted" | "rejected" | "cancelled",
   seatsRequested: 1,
+  decidedAt: null as string | null,
+  rejectionReason: null as string | null,
+  offeredTrip: {
+    ...trip,
+    pickupPoint: "Station A",
+    dropoffPoint: "Station B",
+    luggageNotes: "",
+    conditions: "",
+  },
   passengerName: "Passenger tester",
   tripChanged: false,
   createdAt: new Date().toISOString(),
@@ -24,9 +33,25 @@ const fixture = {
 };
 async function prepare(
   page: Page,
-  options: { owner?: boolean; drop?: boolean } = {},
+  options: {
+    owner?: boolean;
+    drop?: boolean;
+    capacity?: number;
+    accepted?: boolean;
+  } = {},
 ) {
-  let request: typeof fixture | null = options.owner ? { ...fixture } : null,
+  const capacity = options.capacity ?? 3;
+  let booked = options.accepted ? 1 : 0;
+  let request: typeof fixture | null =
+      options.owner || options.accepted
+        ? {
+            ...fixture,
+            status: options.accepted ? "accepted" : "pending",
+            decidedAt: options.accepted ? new Date().toISOString() : null,
+            trip: { ...fixture.trip, seats: capacity - booked },
+            offeredTrip: { ...fixture.offeredTrip, seats: capacity },
+          }
+        : null,
     dropped = false;
   const keys: string[] = [];
   await page.route("**/api/auth/me", (r) =>
@@ -43,7 +68,25 @@ async function prepare(
   );
   await page.route("**/api/auth/logout", (r) => r.fulfill({ status: 204 }));
   await page.route("**/api/trips/mine", (r) =>
-    r.fulfill({ json: { trips: [], nextCursor: null } }),
+    r.fulfill({
+      json: {
+        trips: options.owner
+          ? [
+              {
+                ...fixture.offeredTrip,
+                seats: capacity,
+                bookedSeats: booked,
+                status: "active",
+                version: 1,
+                cancellationReason: null,
+                createdAt: fixture.createdAt,
+                updatedAt: fixture.updatedAt,
+              },
+            ]
+          : [],
+        nextCursor: null,
+      },
+    }),
   );
   await page.route("**/api/discovery/trips**", (r) =>
     r.fulfill({
@@ -51,13 +94,18 @@ async function prepare(
         ? {
             trip: {
               ...trip,
+              seats: capacity - booked,
               pickupPoint: "Station A",
               dropoffPoint: "Station B",
               luggageNotes: "",
               conditions: "",
             },
           }
-        : { trips: [trip], nextCursor: null },
+        : {
+            trips:
+              capacity > booked ? [{ ...trip, seats: capacity - booked }] : [],
+            nextCursor: null,
+          },
     }),
   );
   await page.route("**/api/ride-requests**", async (r) => {
@@ -67,7 +115,9 @@ async function prepare(
         return r.fulfill({
           json: {
             isOwner: !!options.owner,
-            canRequest: !options.owner && request?.status !== "pending",
+            canRequest:
+              !options.owner &&
+              !["pending", "accepted"].includes(request?.status ?? ""),
             request: options.owner ? null : request,
           },
         });
@@ -78,14 +128,35 @@ async function prepare(
     }
     expect(r.request().headers()["x-csrf-token"]).toBe(csrf);
     if (path.endsWith("/cancel")) {
-      request = { ...fixture, status: "cancelled" };
+      if (request?.status === "accepted") booked--;
+      request = {
+        ...(request ?? fixture),
+        status: "cancelled",
+        trip: { ...fixture.trip, seats: capacity - booked },
+      };
       return r.fulfill({ json: { request } });
     }
     const body = r.request().postDataJSON();
+    if (path.endsWith("/decision")) {
+      if (request?.status === "pending" && body.decision === "accept") booked++;
+      request = {
+        ...(request ?? fixture),
+        status: body.decision === "accept" ? "accepted" : "rejected",
+        decidedAt: new Date().toISOString(),
+        rejectionReason:
+          body.decision === "reject" ? body.reason || null : null,
+        trip: { ...fixture.trip, seats: capacity - booked },
+      };
+      return r.fulfill({ json: { request } });
+    }
     expect(body.tripId).toBe(tripId);
     expect(body.seatsRequested).toBeUndefined();
     keys.push(body.requestId);
-    request = { ...fixture };
+    request = {
+      ...fixture,
+      trip: { ...fixture.trip, seats: capacity - booked },
+      offeredTrip: { ...fixture.offeredTrip, seats: capacity },
+    };
     if (options.drop && !dropped) {
       dropped = true;
       return r.abort();
@@ -233,4 +304,77 @@ test("replayed pending request on a cancelled trip never claims it is waiting fo
   await expect(dialog).toContainText(
     "คำขอยังอยู่ในประวัติ แต่เที่ยวไม่พร้อมให้ร่วมเดินทางแล้ว",
   );
+});
+
+test("driver accepts the last seat, owns the total and booked counts, and keeps snapshot details", async ({
+  page,
+}) => {
+  await prepare(page, { owner: true, capacity: 1 });
+  await page
+    .getByRole("button", { name: "ปิดรายละเอียด", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "คำขอที่เข้ามา", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "ตอบรับ 1 ที่นั่ง", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "ยืนยันตอบรับ 1 ที่นั่ง", exact: true })
+    .click();
+  await expect(page.locator(".ride-request-card .request-status")).toHaveText(
+    "ตอบรับแล้ว",
+  );
+  await expect(page.locator(".upcoming-card")).toHaveCount(0);
+  await expect(page.locator(".trips .trip-card")).toContainText(
+    "ตอบรับแล้ว 1 · ว่าง 0",
+  );
+  await expect(
+    page.getByRole("button", { name: /^แก้ไขเที่ยว/ }),
+  ).toBeDisabled();
+  await page.getByText("รายละเอียดที่ส่งคำขอ", { exact: true }).click();
+  await expect(page.locator(".request-offer")).toContainText("Station A");
+  await page
+    .getByRole("region", { name: "คำขอร่วมเดินทาง", exact: true })
+    .screenshot({ path: test.info().outputPath("accepted-request.png") });
+});
+test("driver rejects with a reason without consuming seats", async ({
+  page,
+}) => {
+  await prepare(page, { owner: true });
+  await page
+    .getByRole("button", { name: "ปิดรายละเอียด", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "คำขอที่เข้ามา", exact: true })
+    .click();
+  await page.getByRole("button", { name: "ปฏิเสธคำขอ", exact: true }).click();
+  await page.getByLabel("เหตุผลปฏิเสธ (ไม่บังคับ)").fill("แผนเดินทางเปลี่ยน");
+  await page.getByRole("button", { name: "ยืนยันปฏิเสธ", exact: true }).click();
+  await expect(page.locator(".ride-request-card")).toContainText("ปฏิเสธแล้ว");
+  await expect(page.locator(".ride-request-card")).toContainText(
+    "แผนเดินทางเปลี่ยน",
+  );
+  await expect(page.locator(".upcoming-card")).toContainText("3 ที่นั่ง");
+});
+test("accepted passenger cancellation restores availability and keeps history", async ({
+  page,
+}) => {
+  await prepare(page, { accepted: true });
+  await expect(page.getByRole("dialog").locator(".request-status")).toHaveText(
+    "ตอบรับแล้ว",
+  );
+  await page
+    .getByRole("button", { name: "ปิดรายละเอียด", exact: true })
+    .click();
+  await expect(page.locator(".upcoming-card")).toContainText("2 ที่นั่ง");
+  await page.getByRole("button", { name: "ยกเลิกคำขอ", exact: true }).click();
+  await expect(page.locator(".request-confirm")).toContainText("คืน 1 ที่นั่ง");
+  await page
+    .getByRole("button", { name: "ยืนยันยกเลิกคำขอ", exact: true })
+    .click();
+  await expect(page.locator(".ride-request-card")).toContainText(
+    "ยกเลิกคำขอแล้ว",
+  );
+  await expect(page.locator(".upcoming-card")).toContainText("3 ที่นั่ง");
 });

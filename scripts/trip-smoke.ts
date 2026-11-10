@@ -23,6 +23,7 @@ export async function tripSmoke(
   request: SmokeRequest,
   a: SmokeActor,
   b: SmokeActor,
+  c: SmokeActor,
 ) {
   const draft = {
     originProvince: "กรุงเทพมหานคร",
@@ -252,6 +253,241 @@ export async function tripSmoke(
   console.log(
     "PASS ride requests HTTP: authenticated one-seat request/replay, duplicates/own-trip/CSRF guards, private lists/context, cancellation/resubmit and unchanged seats",
   );
+
+  const latestRide = rideRequestResponseSchema.parse(
+    await rideAgain.json(),
+  ).request;
+  assert.equal(
+    (
+      await request(`/api/ride-requests/${latestRide.id}/decision`, "POST", b, {
+        decision: "accept",
+      })
+    ).status,
+    404,
+  );
+  const decided = await request(
+    `/api/ride-requests/${latestRide.id}/decision`,
+    "POST",
+    a,
+    { decision: "accept" },
+  );
+  assert.equal(decided.status, 200);
+  const acceptedRide = rideRequestResponseSchema.parse(
+    await decided.json(),
+  ).request;
+  assert.equal(acceptedRide.status, "accepted");
+  assert(acceptedRide.decidedAt);
+  assert.equal(acceptedRide.offeredTrip.pickupPoint, draft.pickupPoint);
+  assert.equal(
+    (
+      await request(`/api/ride-requests/${latestRide.id}/decision`, "POST", a, {
+        decision: "accept",
+      })
+    ).status,
+    200,
+  );
+  let availability = await request(`/api/discovery/trips/${trip.id}`, "GET");
+  assert.equal(
+    publicTripResponseSchema.parse(await availability.json()).trip.seats,
+    1,
+  );
+  assert.equal(
+    (
+      await request(`/api/trips/${trip.id}`, "PUT", a, {
+        ...update,
+        version: 2,
+      })
+    ).status,
+    409,
+  );
+  assert.equal(
+    (await request(`/api/ride-requests/${latestRide.id}/cancel`, "POST", b, {}))
+      .status,
+    200,
+  );
+  assert.equal(
+    (await request(`/api/ride-requests/${latestRide.id}/cancel`, "POST", b, {}))
+      .status,
+    200,
+  );
+  availability = await request(`/api/discovery/trips/${trip.id}`, "GET");
+  assert.equal(
+    publicTripResponseSchema.parse(await availability.json()).trip.seats,
+    2,
+  );
+  const rejectCreated = await request("/api/ride-requests", "POST", b, {
+    tripId: trip.id,
+    requestId: crypto.randomUUID(),
+  });
+  assert.equal(rejectCreated.status, 201);
+  const rejectedId = rideRequestResponseSchema.parse(await rejectCreated.json())
+    .request.id;
+  const rejectedResponse = await request(
+    `/api/ride-requests/${rejectedId}/decision`,
+    "POST",
+    a,
+    { decision: "reject", reason: "Smoke rejection" },
+  );
+  assert.equal(rejectedResponse.status, 200);
+  assert.equal(
+    rideRequestResponseSchema.parse(await rejectedResponse.json()).request
+      .status,
+    "rejected",
+  );
+  assert.equal(
+    (
+      await request(`/api/ride-requests/${rejectedId}/decision`, "POST", a, {
+        decision: "reject",
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    (
+      await request(`/api/ride-requests/${rejectedId}/decision`, "POST", a, {
+        decision: "accept",
+      })
+    ).status,
+    409,
+  );
+  const finalRequest = await request("/api/ride-requests", "POST", b, {
+    tripId: trip.id,
+    requestId: crypto.randomUUID(),
+  });
+  assert.equal(finalRequest.status, 201);
+  const finalRequestId = rideRequestResponseSchema.parse(
+    await finalRequest.json(),
+  ).request.id;
+  assert.equal(
+    (
+      await request(
+        `/api/ride-requests/${finalRequestId}/decision`,
+        "POST",
+        a,
+        { decision: "accept" },
+      )
+    ).status,
+    200,
+  );
+
+  // A second disposable trip exercises real concurrent HTTP requests for one final seat.
+  const singleResponse = await request("/api/trips", "POST", a, {
+    ...draft,
+    seats: 1,
+    requestId: crypto.randomUUID(),
+  });
+  assert.equal(singleResponse.status, 201);
+  const single = tripResponseSchema.parse(await singleResponse.json()).trip;
+  const contenderB = await request("/api/ride-requests", "POST", b, {
+      tripId: single.id,
+      requestId: crypto.randomUUID(),
+    }),
+    contenderC = await request("/api/ride-requests", "POST", c, {
+      tripId: single.id,
+      requestId: crypto.randomUUID(),
+    });
+  assert.equal(contenderB.status, 201);
+  assert.equal(contenderC.status, 201);
+  const rb = rideRequestResponseSchema.parse(await contenderB.json()).request,
+    rc = rideRequestResponseSchema.parse(await contenderC.json()).request;
+  const race = await Promise.all([
+    request(`/api/ride-requests/${rb.id}/decision`, "POST", a, {
+      decision: "accept",
+    }),
+    request(`/api/ride-requests/${rc.id}/decision`, "POST", a, {
+      decision: "accept",
+    }),
+  ]);
+  assert.deepEqual(race.map((r) => r.status).sort(), [200, 409]);
+  const winning = rideRequestResponseSchema.parse(
+      await race.find((r) => r.status === 200)!.json(),
+    ).request,
+    losing = winning.id === rb.id ? rc : rb,
+    winningActor = winning.id === rb.id ? b : c;
+  assert.equal(
+    (await request(`/api/discovery/trips/${single.id}`, "GET")).status,
+    404,
+  );
+  const repeatWins = await Promise.all([
+    request(`/api/ride-requests/${winning.id}/decision`, "POST", a, {
+      decision: "accept",
+    }),
+    request(`/api/ride-requests/${winning.id}/decision`, "POST", a, {
+      decision: "accept",
+    }),
+  ]);
+  assert(repeatWins.every((r) => r.status === 200));
+  let ownedSeats = await request("/api/trips/mine", "GET", a);
+  assert.equal(
+    tripListSchema
+      .parse(await ownedSeats.json())
+      .trips.find((t) => t.id === single.id)!.bookedSeats,
+    1,
+  );
+  const refunds = await Promise.all([
+    request(
+      `/api/ride-requests/${winning.id}/cancel`,
+      "POST",
+      winningActor,
+      {},
+    ),
+    request(
+      `/api/ride-requests/${winning.id}/cancel`,
+      "POST",
+      winningActor,
+      {},
+    ),
+  ]);
+  assert(refunds.every((r) => r.status === 200));
+  ownedSeats = await request("/api/trips/mine", "GET", a);
+  assert.equal(
+    tripListSchema
+      .parse(await ownedSeats.json())
+      .trips.find((t) => t.id === single.id)!.bookedSeats,
+    0,
+  );
+  const raceEdited = await request(`/api/trips/${single.id}`, "PUT", a, {
+    ...draft,
+    seats: 1,
+    contributionSatang: 20000,
+    version: 1,
+  });
+  assert.equal(raceEdited.status, 200);
+  const stale = await request(
+    `/api/ride-requests/${losing.id}/decision`,
+    "POST",
+    a,
+    { decision: "accept" },
+  );
+  assert.equal(stale.status, 409);
+  assert.equal(
+    ((await stale.json()) as { error: string }).error,
+    "trip_changed",
+  );
+  const noSeat = await request(
+    `/api/ride-requests/${losing.id}/decision`,
+    "POST",
+    a,
+    { decision: "reject", reason: "New terms require resubmission" },
+  );
+  assert.equal(noSeat.status, 200);
+  assert.equal(
+    rideRequestResponseSchema.parse(await noSeat.json()).request.offeredTrip
+      .contributionSatang,
+    10025,
+  );
+  assert.equal(
+    (
+      await request(`/api/trips/${single.id}/cancel`, "POST", a, {
+        version: 2,
+        reason: "Smoke cleanup",
+      })
+    ).status,
+    200,
+  );
+  console.log(
+    "PASS decisions HTTP: three actors, owner-only accept/reject, concurrent final seat, duplicate accept/refund, full-trip exclusion, stale snapshots, immutable offers and edit lock",
+  );
   const cancellation = { version: 2, reason: "เสร็จสิ้นการทดสอบอัตโนมัติ" };
   const cancelled = await request(
     `/api/trips/${trip.id}/cancel`,
@@ -264,6 +500,14 @@ export async function tripSmoke(
   assert.equal(final.version, 3);
   assert.equal(final.status, "cancelled");
   assert.equal(final.cancellationReason, cancellation.reason);
+  assert.equal(final.bookedSeats, 0);
+  const requestHistory = await request("/api/ride-requests/mine", "GET", b);
+  assert.equal(
+    rideRequestListSchema
+      .parse(await requestHistory.json())
+      .requests.find((r) => r.id === finalRequestId)!.status,
+    "cancelled",
+  );
   assert.equal(
     (
       await request("/api/ride-requests", "POST", b, {

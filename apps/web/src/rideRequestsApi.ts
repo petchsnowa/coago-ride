@@ -8,6 +8,10 @@ export const requestMessages: Record<string, string> = {
   request_reused: "คำขอนี้เคยใช้แล้ว กรุณาโหลดข้อมูลล่าสุด",
   trip_not_found: "ไม่พบเที่ยวที่พร้อมให้ส่งคำขอ",
   request_not_found: "ไม่พบคำขอของคุณ",
+  trip_changed:
+    "รายละเอียดเที่ยวเปลี่ยน กรุณาให้ผู้โดยสารยกเลิกแล้วส่งคำขอใหม่ก่อนตอบรับ",
+  request_not_pending: "คำขอเปลี่ยนสถานะแล้ว กรุณาโหลดข้อมูลล่าสุด",
+  cancellation_closed: "คำขอที่ตอบรับแล้ว ยกเลิกได้เฉพาะก่อนออกเดินทาง",
   service_unavailable: "ระบบยังไม่พร้อม กรุณาลองอีกครั้ง",
 };
 export class RideApiError extends Error {
@@ -48,9 +52,13 @@ export async function rideApi(
 export function requestStatusLabel(request: RideRequest, now = Date.now()) {
   return request.status === "cancelled"
     ? "ยกเลิกคำขอแล้ว"
-    : request.trip.status === "cancelled"
-      ? "เที่ยวยกเลิกแล้ว"
-      : Date.parse(request.trip.departureAt) <= now
-        ? "เที่ยวออกเดินทางแล้ว"
-        : "รอตอบรับ";
+    : request.status === "rejected"
+      ? "ปฏิเสธแล้ว"
+      : request.trip.status === "cancelled"
+        ? "เที่ยวยกเลิกแล้ว"
+        : Date.parse(request.trip.departureAt) <= now
+          ? "เที่ยวออกเดินทางแล้ว"
+          : request.status === "accepted"
+            ? "ตอบรับแล้ว"
+            : "รอตอบรับ";
 }

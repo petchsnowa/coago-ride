@@ -2,6 +2,8 @@ import type pg from "pg";
 import { withDatabase } from "@coago/db";
 import {
   rideRequestSchema,
+  publicTripDetailSchema,
+  type DecideRideRequest,
   type CreateRideRequest,
   type RideRequest,
   type RideRequestList,
@@ -16,7 +18,10 @@ export class RideRequestError extends Error {
       | "own_trip"
       | "trip_unavailable"
       | "already_requested"
-      | "request_reused",
+      | "request_reused"
+      | "request_not_pending"
+      | "trip_changed"
+      | "cancellation_closed",
   ) {
     super(code);
   }
@@ -28,6 +33,12 @@ export interface RideRequestStore {
     now: Date,
   ): Promise<{ request: RideRequest; created: boolean }>;
   cancel(actor: string, id: string, now: Date): Promise<RideRequest>;
+  decide(
+    actor: string,
+    id: string,
+    input: DecideRideRequest,
+    now: Date,
+  ): Promise<RideRequest>;
   list(
     actor: string,
     kind: "mine" | "incoming",
@@ -47,6 +58,10 @@ type Row = {
   status: string;
   seats_requested: number;
   trip_version: number;
+  trip_snapshot: unknown;
+  decided_at: Date | null;
+  rejection_reason: string | null;
+  seats_booked: number;
   created_at: Date;
   updated_at: Date;
   passenger_name: string;
@@ -60,11 +75,14 @@ type Row = {
   trip_status: string;
   current_version: number;
 };
-const select = `SELECT r.id,r.trip_id,r.passenger_id,r.request_id,r.status,r.seats_requested,r.trip_version,r.created_at,r.updated_at,u.display_name AS passenger_name,t.origin_province,t.destination_province,t.departure_at,t.seats_offered,t.vehicle_model,t.vehicle_color,t.contribution_satang,t.status AS trip_status,t.version AS current_version FROM ride_requests r JOIN trips t ON t.id=r.trip_id JOIN users u ON u.id=r.passenger_id`;
+const select = `SELECT r.id,r.trip_id,r.passenger_id,r.request_id,r.status,r.seats_requested,r.trip_version,r.trip_snapshot,r.decided_at,r.rejection_reason,r.created_at,r.updated_at,u.display_name AS passenger_name,t.origin_province,t.destination_province,t.departure_at,t.seats_offered,t.seats_booked,t.vehicle_model,t.vehicle_color,t.contribution_satang,t.status AS trip_status,t.version AS current_version FROM ride_requests r JOIN trips t ON t.id=r.trip_id JOIN users u ON u.id=r.passenger_id`;
 function dto(row: Row): RideRequest {
   return rideRequestSchema.parse({
     id: row.id,
     status: row.status,
+    offeredTrip: row.trip_snapshot,
+    decidedAt: row.decided_at?.toISOString() ?? null,
+    rejectionReason: row.rejection_reason,
     seatsRequested: row.seats_requested,
     passengerName: row.passenger_name,
     tripChanged: row.trip_version !== row.current_version,
@@ -75,7 +93,7 @@ function dto(row: Row): RideRequest {
       originProvince: row.origin_province,
       destinationProvince: row.destination_province,
       departureAt: row.departure_at.toISOString(),
-      seats: row.seats_offered,
+      seats: row.seats_offered - row.seats_booked,
       vehicleModel: row.vehicle_model,
       vehicleColor: row.vehicle_color,
       contributionSatang: row.contribution_satang,
@@ -93,11 +111,41 @@ type TripRow = {
   owner_id: string;
   status: string;
   seats_offered: number;
+  seats_booked: number;
+  origin_province: string;
+  destination_province: string;
+  pickup_point: string;
+  dropoff_point: string;
+  vehicle_model: string;
+  vehicle_color: string;
+  contribution_satang: number;
+  luggage_notes: string;
+  conditions: string;
   version: number;
   departure_at: Date;
 };
 const available = (trip: TripRow, now: Date) =>
-  trip.status === "active" && trip.seats_offered > 0 && trip.departure_at > now;
+  trip.status === "active" &&
+  trip.seats_offered > trip.seats_booked &&
+  trip.departure_at > now;
+const tripSelect =
+  "SELECT id,owner_id,status,seats_offered,seats_booked,version,departure_at,origin_province,destination_province,pickup_point,dropoff_point,vehicle_model,vehicle_color,contribution_satang,luggage_notes,conditions FROM trips";
+function snapshot(trip: TripRow) {
+  return publicTripDetailSchema.parse({
+    id: trip.id,
+    originProvince: trip.origin_province,
+    destinationProvince: trip.destination_province,
+    departureAt: trip.departure_at.toISOString(),
+    seats: trip.seats_offered - trip.seats_booked,
+    vehicleModel: trip.vehicle_model,
+    vehicleColor: trip.vehicle_color,
+    contributionSatang: trip.contribution_satang,
+    pickupPoint: trip.pickup_point,
+    dropoffPoint: trip.dropoff_point,
+    luggageNotes: trip.luggage_notes,
+    conditions: trip.conditions,
+  });
+}
 async function transaction<T>(url: string, work: (c: pg.Client) => Promise<T>) {
   return withDatabase(url, async (_db, client) => {
     await client.query("BEGIN");
@@ -125,7 +173,7 @@ export function postgresRideRequestStore(url: string): RideRequestStore {
           return { request: dto(replay.rows[0]), created: false };
         }
         const locked = await client.query<TripRow>(
-          "SELECT id,owner_id,status,seats_offered,version,departure_at FROM trips WHERE id=$1 FOR UPDATE",
+          `${tripSelect} WHERE id=$1 FOR UPDATE`,
           [input.tripId],
         );
         const trip = locked.rows[0];
@@ -144,12 +192,12 @@ export function postgresRideRequestStore(url: string): RideRequestStore {
         if (!available(trip, now))
           throw new RideRequestError("trip_unavailable");
         const pending = await client.query(
-          "SELECT id FROM ride_requests WHERE passenger_id=$1 AND trip_id=$2 AND status='pending'",
+          "SELECT id FROM ride_requests WHERE passenger_id=$1 AND trip_id=$2 AND status IN ('pending','accepted')",
           [actor, input.tripId],
         );
         if (pending.rows[0]) throw new RideRequestError("already_requested");
         const inserted = await client.query<{ id: string }>(
-          "INSERT INTO ride_requests(id,trip_id,passenger_id,request_id,trip_version,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$6) ON CONFLICT(passenger_id,request_id) DO NOTHING RETURNING id",
+          "INSERT INTO ride_requests(id,trip_id,passenger_id,request_id,trip_version,created_at,updated_at,trip_snapshot) VALUES($1,$2,$3,$4,$5,$6,$6,$7::jsonb) ON CONFLICT(passenger_id,request_id) DO NOTHING RETURNING id",
           [
             crypto.randomUUID(),
             input.tripId,
@@ -157,6 +205,7 @@ export function postgresRideRequestStore(url: string): RideRequestStore {
             input.requestId,
             trip.version,
             now,
+            JSON.stringify(snapshot(trip)),
           ],
         );
         if (inserted.rows[0])
@@ -180,12 +229,77 @@ export function postgresRideRequestStore(url: string): RideRequestStore {
           [id, actor],
         );
         if (!found.rows[0]) throw new RideRequestError("request_not_found");
-        await client.query("SELECT id FROM trips WHERE id=$1 FOR UPDATE", [
-          found.rows[0].trip_id,
-        ]);
+        const trip = (
+          await client.query<TripRow>(`${tripSelect} WHERE id=$1 FOR UPDATE`, [
+            found.rows[0].trip_id,
+          ])
+        ).rows[0];
+        const row = (
+          await client.query<Row>(
+            `${select} WHERE r.id=$1 AND r.passenger_id=$2`,
+            [id, actor],
+          )
+        ).rows[0];
+        if (!row) throw new RideRequestError("request_not_found");
+        if (row.status === "cancelled") return dto(row);
+        if (row.status === "rejected")
+          throw new RideRequestError("request_not_pending");
+        if (row.status === "accepted") {
+          if (trip.status !== "active" || trip.departure_at <= now)
+            throw new RideRequestError("cancellation_closed");
+          const released = await client.query(
+            "UPDATE trips SET seats_booked=seats_booked-1,updated_at=$2 WHERE id=$1 AND seats_booked>0",
+            [trip.id, now],
+          );
+          if (released.rowCount !== 1) throw new Error("SEAT_INVARIANT");
+        }
         await client.query(
-          "UPDATE ride_requests SET status='cancelled',updated_at=$3 WHERE id=$1 AND passenger_id=$2 AND status='pending'",
+          "UPDATE ride_requests SET status='cancelled',updated_at=$3 WHERE id=$1 AND passenger_id=$2 AND status IN ('pending','accepted')",
           [id, actor, now],
+        );
+        return byId(client, id);
+      });
+    },
+    async decide(actor, id, input, now) {
+      return transaction(url, async (client) => {
+        const target = await client.query<{ trip_id: string }>(
+          "SELECT r.trip_id FROM ride_requests r JOIN trips t ON t.id=r.trip_id WHERE r.id=$1 AND t.owner_id=$2",
+          [id, actor],
+        );
+        if (!target.rows[0]) throw new RideRequestError("request_not_found");
+        const trip = (
+          await client.query<TripRow>(`${tripSelect} WHERE id=$1 FOR UPDATE`, [
+            target.rows[0].trip_id,
+          ])
+        ).rows[0];
+        const row = (await client.query<Row>(`${select} WHERE r.id=$1`, [id]))
+          .rows[0];
+        if (!row || trip.owner_id !== actor)
+          throw new RideRequestError("request_not_found");
+        const state = input.decision === "accept" ? "accepted" : "rejected";
+        if (row.status === state) return dto(row);
+        if (row.status !== "pending")
+          throw new RideRequestError("request_not_pending");
+        if (input.decision === "accept") {
+          if (!available(trip, now))
+            throw new RideRequestError("trip_unavailable");
+          if (row.trip_version !== trip.version)
+            throw new RideRequestError("trip_changed");
+          const booked = await client.query(
+            "UPDATE trips SET seats_booked=seats_booked+1,updated_at=$2 WHERE id=$1 AND seats_booked<seats_offered",
+            [trip.id, now],
+          );
+          if (booked.rowCount !== 1)
+            throw new RideRequestError("trip_unavailable");
+        }
+        await client.query(
+          "UPDATE ride_requests SET status=$2,decided_at=$3,updated_at=$3,rejection_reason=$4 WHERE id=$1 AND status='pending'",
+          [
+            id,
+            state,
+            now,
+            input.decision === "reject" ? input.reason || null : null,
+          ],
         );
         return byId(client, id);
       });
@@ -218,13 +332,13 @@ export function postgresRideRequestStore(url: string): RideRequestStore {
     async context(actor, tripId, now) {
       return withDatabase(url, async (_db, client) => {
         const tripResult = await client.query<TripRow>(
-          "SELECT id,owner_id,status,seats_offered,version,departure_at FROM trips WHERE id=$1",
+          `${tripSelect} WHERE id=$1`,
           [tripId],
         );
         const trip = tripResult.rows[0];
         if (!trip) throw new RideRequestError("trip_not_found");
         const { rows } = await client.query<Row>(
-          `${select} WHERE r.passenger_id=$1 AND r.trip_id=$2 ORDER BY (r.status='pending') DESC,r.created_at DESC,r.id DESC LIMIT 1`,
+          `${select} WHERE r.passenger_id=$1 AND r.trip_id=$2 ORDER BY (r.status IN ('pending','accepted')) DESC,r.created_at DESC,r.id DESC LIMIT 1`,
           [actor, tripId],
         );
         const request = rows[0] ? dto(rows[0]) : null,
@@ -234,7 +348,9 @@ export function postgresRideRequestStore(url: string): RideRequestStore {
         return {
           isOwner,
           canRequest:
-            !isOwner && available(trip, now) && request?.status !== "pending",
+            !isOwner &&
+            available(trip, now) &&
+            !["pending", "accepted"].includes(request?.status ?? ""),
           request,
         };
       });

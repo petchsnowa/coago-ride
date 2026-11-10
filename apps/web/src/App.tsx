@@ -51,14 +51,18 @@ export default function App() {
           <span className="badge">เว็บทดสอบ</span>
         </div>
       </nav>
-      <SearchTrips account={account} onRequestChange={requestsChanged} />
+      <SearchTrips
+        account={account}
+        onRequestChange={requestsChanged}
+        revision={requestRevision}
+      />
       <AuthPanel onAccountChange={setAccount} />
       <RideRequestsPanel
         account={account}
         revision={requestRevision}
         onChange={requestsChanged}
       />
-      <TripsPanel account={account} />
+      <TripsPanel account={account} revision={requestRevision} />
       <section className="system" aria-labelledby="system-title">
         <div>
           <p className="eyebrow">เริ่มต้นไปด้วยกัน</p>

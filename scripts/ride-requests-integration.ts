@@ -165,10 +165,10 @@ try {
     );
     await assert.rejects(
       c.query(
-        "INSERT INTO ride_requests(id,trip_id,passenger_id,request_id,trip_version) VALUES($1,$2,$3,$4,1)",
+        "INSERT INTO ride_requests(id,trip_id,passenger_id,request_id,trip_version,trip_snapshot) VALUES($1,$2,$3,$4,1,'{}'::jsonb)",
         [crypto.randomUUID(), trip.id, passenger, crypto.randomUUID()],
       ),
-      /ride_requests_pending_idx/,
+      /ride_requests_active_idx/,
     );
   });
   await trips.cancel(

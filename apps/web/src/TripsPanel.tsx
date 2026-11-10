@@ -40,6 +40,8 @@ const blank = (): Form => ({
 const messages: Record<string, string> = {
   unauthorized: "เซสชันหมดอายุ กรุณารีเฟรชหน้าและเข้าสู่ระบบใหม่",
   forbidden: "สิทธิ์หรือเซสชันเปลี่ยน กรุณารีเฟรชหน้าแล้วลองอีกครั้ง",
+  bookings_locked:
+    "มีผู้โดยสารที่ตอบรับแล้ว จึงแก้รายละเอียดไม่ได้ หากเปลี่ยนแผนให้ยกเลิกเที่ยวพร้อมเหตุผล",
   trip_conflict: "ประกาศนี้ถูกแก้ไขแล้ว กรุณาโหลดข้อมูลล่าสุดก่อนแก้ไขอีกครั้ง",
   trip_not_editable: "เที่ยวนี้ถูกยกเลิกแล้ว จึงแก้ไขไม่ได้",
   departure_in_past:
@@ -64,9 +66,19 @@ function displayTime(value: string) {
     timeZone: "Asia/Bangkok",
   }).format(new Date(value));
 }
-export default function TripsPanel({ account }: { account: AuthState | null }) {
+export default function TripsPanel({
+  account,
+  revision = 0,
+}: {
+  account: AuthState | null;
+  revision?: number;
+}) {
   return account?.user ? (
-    <OwnedTrips key={account.user.id} csrfToken={account.csrfToken} />
+    <OwnedTrips
+      key={account.user.id}
+      csrfToken={account.csrfToken}
+      revision={revision}
+    />
   ) : (
     <section className="trips locked" aria-labelledby="trips-title">
       <p className="eyebrow">เที่ยวเดินทางของฉัน</p>
@@ -75,7 +87,13 @@ export default function TripsPanel({ account }: { account: AuthState | null }) {
     </section>
   );
 }
-function OwnedTrips({ csrfToken }: { csrfToken: string }) {
+function OwnedTrips({
+  csrfToken,
+  revision,
+}: {
+  csrfToken: string;
+  revision: number;
+}) {
   const [form, setForm] = useState<Form>(blank),
     [editing, setEditing] = useState<Trip | null>(null),
     [requestId, setRequestId] = useState(() => crypto.randomUUID());
@@ -157,6 +175,13 @@ function OwnedTrips({ csrfToken }: { csrfToken: string }) {
       for (const request of requests.current) request.abort();
     };
   }, []);
+  const seenRevision = useRef(revision);
+  useEffect(() => {
+    if (seenRevision.current !== revision) {
+      seenRevision.current = revision;
+      void load();
+    }
+  }, [revision]);
   function field<K extends keyof Form>(key: K, value: Form[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setFields((prev) => ({ ...prev, [key]: "" }));
@@ -563,7 +588,10 @@ function OwnedTrips({ csrfToken }: { csrfToken: string }) {
                 </div>
                 <div>
                   <dt>ที่นั่ง</dt>
-                  <dd>{trip.seats} ที่นั่ง</dd>
+                  <dd>
+                    เปิดทั้งหมด {trip.seats} ที่นั่ง · ตอบรับแล้ว{" "}
+                    {trip.bookedSeats} · ว่าง {trip.seats - trip.bookedSeats}
+                  </dd>
                 </div>
                 <div>
                   <dt>ร่วมค่าเดินทาง</dt>
@@ -592,6 +620,12 @@ function OwnedTrips({ csrfToken }: { csrfToken: string }) {
                   </div>
                 )}
               </dl>
+              {trip.bookedSeats > 0 && (
+                <p className="field-help">
+                  มีผู้โดยสารตอบรับแล้ว จึงแก้รายละเอียดไม่ได้
+                  หากจำเป็นให้ยกเลิกเที่ยวพร้อมเหตุผล
+                </p>
+              )}
               {trip.cancellationReason && (
                 <p className="cancel-reason">
                   เหตุผลยกเลิก: {trip.cancellationReason}
@@ -602,7 +636,7 @@ function OwnedTrips({ csrfToken }: { csrfToken: string }) {
                   <button
                     type="button"
                     className="secondary"
-                    disabled={busy}
+                    disabled={busy || trip.bookedSeats > 0}
                     onClick={() => edit(trip)}
                     aria-label={`แก้ไขเที่ยว ${trip.originProvince} ไป ${trip.destinationProvince}`}
                   >
@@ -629,7 +663,10 @@ function OwnedTrips({ csrfToken }: { csrfToken: string }) {
                   onSubmit={cancel}
                   aria-label="ยืนยันการยกเลิกเที่ยว"
                 >
-                  <p>เมื่อยกเลิกแล้วจะเปิดรับในประกาศนี้อีกไม่ได้</p>
+                  <p>
+                    เมื่อยกเลิกแล้วจะเปิดรับในประกาศนี้อีกไม่ได้
+                    และคำขอรอตอบรับ/ที่ตอบรับแล้วจะถูกยกเลิกทั้งหมด
+                  </p>
                   <label className="trip-field" htmlFor={`cancel-${trip.id}`}>
                     เหตุผลยกเลิก
                     <textarea

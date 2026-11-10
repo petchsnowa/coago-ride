@@ -1,5 +1,5 @@
 import { encodeDiscoveryCursor } from "./cursor";
-import { and, asc, eq, gt, gte, lt, or } from "drizzle-orm";
+import { and, asc, eq, gt, gte, lt, or, sql } from "drizzle-orm";
 import { trips, withDatabase } from "@coago/db";
 import {
   bangkokDayRange,
@@ -15,7 +15,7 @@ const summaryColumns = {
   originProvince: trips.originProvince,
   destinationProvince: trips.destinationProvince,
   departureAt: trips.departureAt,
-  seats: trips.seats,
+  seats: sql<number>`${trips.seats}-${trips.bookedSeats}`,
   vehicleModel: trips.vehicleModel,
   vehicleColor: trips.vehicleColor,
   contributionSatang: trips.contributionSatang,
@@ -24,7 +24,7 @@ const available = (now: Date) =>
   and(
     eq(trips.status, "active"),
     gt(trips.departureAt, now),
-    gt(trips.seats, 0),
+    lt(trips.bookedSeats, trips.seats),
   );
 export interface DiscoveryStore {
   upcoming(now: Date): Promise<PublicTripList>;

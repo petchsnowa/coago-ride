@@ -146,6 +146,7 @@ export const tripSchema = z
     ...fields,
     id: z.string().uuid(),
     version: z.number().int().positive().max(2147483647),
+    bookedSeats: z.number().int().min(0).max(8).default(0),
     status: z.enum(["active", "cancelled"]),
     cancellationReason: z.string().nullable(),
     createdAt: z.string().datetime(),

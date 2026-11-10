@@ -23,7 +23,7 @@ async function main() {
     ids: string[] = [];
   const actors: SmokeActor[] = [];
   try {
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 3; i++) {
       const token = randomBytes(32).toString("hex"),
         csrfToken = randomBytes(32).toString("hex");
       // No tokens/cookies or connection strings are printed, even on assertion failure.
@@ -60,9 +60,10 @@ async function main() {
       },
       actors[0],
       actors[1],
+      actors[2],
     );
     console.log(
-      "PASS remote Workers -> Hyperdrive -> Neon: trip CRUD, pending/cancelled ride requests and anonymous public search/detail, ownership, privacy projection, CSRF, replay and version conflict (synthetic sessions)",
+      "PASS remote Workers -> Hyperdrive -> Neon: trip CRUD, accept/reject/cancel ride requests with last-seat concurrency and anonymous public search/detail, ownership, privacy projection, CSRF, replay and version conflict (synthetic sessions)",
     );
   } finally {
     if (ids.length)
@@ -81,7 +82,7 @@ async function main() {
   if (process.env.GITHUB_STEP_SUMMARY)
     await appendFile(
       process.env.GITHUB_STEP_SUMMARY,
-      "\n## Phase 2B remote trip verification\n\nReal HTTPS Workers → Hyperdrive → Neon CRUD, pending/cancelled ride requests (one-seat, no capacity mutation, private actor lists, ownership/CSRF, retry/resubmit) and anonymous discovery passed using two disposable synthetic sessions: public route/Thai-date search, safe detail projection, updated-seat visibility, cancelled detail/search exclusion, owner-only list/edit/cancel, CSRF rejection, duplicate create retry, stale version rejection and immutable cancelled trip. Synthetic accounts and their trips/sessions removed. Real LINE login was previously owner-tested; this smoke test does not replace a new manual trip walkthrough.\n",
+      "\n## COAGO remote trip and request verification\n\nReal HTTPS Workers → Hyperdrive → Neon CRUD, accept/reject/cancel ride requests with last-seat concurrency (one seat per accepted request, atomic allocation/refund, private actor lists, ownership/CSRF, retry/resubmit) and anonymous discovery passed using three disposable synthetic sessions: public route/Thai-date search, safe detail projection, updated-seat visibility, cancelled detail/search exclusion, owner-only list/edit/cancel, CSRF rejection, duplicate create retry, stale version rejection and immutable cancelled trip. Synthetic accounts and their trips/sessions removed. Real LINE login was previously owner-tested; this smoke test does not replace a new manual trip walkthrough.\n",
     );
 }
 main().catch(() => {

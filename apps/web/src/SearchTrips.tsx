@@ -32,7 +32,12 @@ async function get(path: string, signal: AbortSignal) {
 export default function SearchTrips({
   account = null,
   onRequestChange = () => {},
-}: { account?: AuthState | null; onRequestChange?: () => void } = {}) {
+  revision = 0,
+}: {
+  account?: AuthState | null;
+  onRequestChange?: () => void;
+  revision?: number;
+} = {}) {
   const [form, setForm] = useState({
     originProvince: "",
     destinationProvince: "",
@@ -140,6 +145,14 @@ export default function SearchTrips({
       if (current === searchSequence.current) setBusy(false);
     }
   }
+  const seenRevision = useRef(revision);
+  useEffect(() => {
+    if (seenRevision.current !== revision) {
+      seenRevision.current = revision;
+      void loadUpcoming();
+      if (applied) void search(applied);
+    }
+  }, [revision]);
   function submit(event: React.FormEvent) {
     event.preventDefault();
     const parsed = tripSearchSchema.safeParse(form);

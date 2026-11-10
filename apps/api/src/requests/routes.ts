@@ -4,6 +4,7 @@ import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
 import {
   createRideRequestSchema,
+  decideRideRequestSchema,
   rideRequestResponseSchema,
   rideRequestListSchema,
   rideRequestContextSchema,
@@ -115,6 +116,21 @@ export function rideRequestRoutes(
     return c.json(
       rideRequestResponseSchema.parse({ request: result.request }),
       result.created ? 201 : 200,
+    );
+  });
+  app.post("/:id/decision", async (c) => {
+    const id = z.string().uuid().safeParse(c.req.param("id")),
+      input = decideRideRequestSchema.safeParse(
+        await c.req.json().catch(() => null),
+      );
+    if (!id.success || !input.success)
+      return c.json({ error: "invalid_request" }, 400);
+    return c.json(
+      rideRequestResponseSchema.parse({
+        request: await deps
+          .store(databaseUrl(c.env))
+          .decide(c.get("session").user.id, id.data, input.data, deps.now()),
+      }),
     );
   });
   app.post("/:id/cancel", async (c) => {

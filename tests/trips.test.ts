@@ -28,6 +28,7 @@ export const draft = tripDraftSchema.parse({
   contributionSatang: 10025,
 });
 const trip: Trip = {
+  bookedSeats: 0,
   ...draft,
   id,
   version: 1,
@@ -58,23 +59,19 @@ beforeEach(() => {
     list: vi.fn().mockResolvedValue({ trips: [trip], nextCursor: null }),
     create: vi.fn().mockResolvedValue({ trip, created: true }),
     update: vi.fn().mockResolvedValue({ ...trip, version: 2 }),
-    cancel: vi
-      .fn()
-      .mockResolvedValue({
-        ...trip,
-        version: 2,
-        status: "cancelled",
-        cancellationReason: "ยกเลิกการทดสอบ",
-      }),
+    cancel: vi.fn().mockResolvedValue({
+      ...trip,
+      version: 2,
+      status: "cancelled",
+      cancellationReason: "ยกเลิกการทดสอบ",
+    }),
   };
   auth = {
     ...postgresAuthStore("unused"),
-    getSession: vi
-      .fn()
-      .mockResolvedValue({
-        user: { id: owner, displayName: "Test" },
-        csrfToken: "b".repeat(64),
-      }),
+    getSession: vi.fn().mockResolvedValue({
+      user: { id: owner, displayName: "Test" },
+      csrfToken: "b".repeat(64),
+    }),
   };
   app = createApp(
     async () => {},

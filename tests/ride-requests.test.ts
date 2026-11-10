@@ -16,6 +16,22 @@ const request = rideRequestSchema.parse({
   id,
   status: "pending",
   seatsRequested: 1,
+  decidedAt: null,
+  rejectionReason: null,
+  offeredTrip: {
+    id: tripId,
+    originProvince: "กรุงเทพมหานคร",
+    destinationProvince: "เชียงใหม่",
+    departureAt: "2030-01-02T00:00:00.000Z",
+    seats: 3,
+    vehicleModel: "Test",
+    vehicleColor: "White",
+    contributionSatang: 10025,
+    pickupPoint: "Station A",
+    dropoffPoint: "Station B",
+    luggageNotes: "",
+    conditions: "",
+  },
   passengerName: "Tester",
   tripChanged: false,
   createdAt: now.toISOString(),
@@ -51,6 +67,11 @@ let store: RideRequestStore,
   app: ReturnType<typeof createApp>;
 beforeEach(() => {
   store = {
+    decide: vi.fn().mockResolvedValue({
+      ...request,
+      status: "accepted",
+      decidedAt: now.toISOString(),
+    }),
     create: vi.fn().mockResolvedValue({ request, created: true }),
     cancel: vi.fn().mockResolvedValue({ ...request, status: "cancelled" }),
     list: vi.fn().mockResolvedValue({ requests: [request], nextCursor: null }),
@@ -206,4 +227,75 @@ it("pending history displays unavailable when the trip closes or departs", () =>
   expect(
     requestStatusLabel(request, Date.parse(request.trip.departureAt)),
   ).toBe("เที่ยวออกเดินทางแล้ว");
+});
+
+it("owner decision uses only the authenticated actor and normalized payload", async () => {
+  const response = await call(`/${id}/decision`, "POST", {
+    decision: "accept",
+  });
+  expect(response.status).toBe(200);
+  expect(store.decide).toHaveBeenCalledWith(
+    actor,
+    id,
+    { decision: "accept", reason: "" },
+    now,
+  );
+});
+it.each([
+  { decision: "other" },
+  { decision: "accept", reason: "not allowed" },
+  { decision: "reject", reason: "x".repeat(301) },
+  { decision: "accept", ownerId: actor },
+])("rejects invalid decision %j", async (body) => {
+  expect((await call(`/${id}/decision`, "POST", body)).status).toBe(400);
+  expect(store.decide).not.toHaveBeenCalled();
+});
+it("decision requires Origin/CSRF and refuses foreign ids", async () => {
+  expect(
+    (
+      await call(
+        `/${id}/decision`,
+        "POST",
+        { decision: "accept" },
+        { ...headers, "X-CSRF-Token": "wrong" },
+      )
+    ).status,
+  ).toBe(403);
+  vi.mocked(store.decide).mockRejectedValue(
+    new RideRequestError("request_not_found"),
+  );
+  expect(
+    (await call(`/${id}/decision`, "POST", { decision: "reject" })).status,
+  ).toBe(404);
+});
+it.each(["trip_changed", "request_not_pending", "trip_unavailable"] as const)(
+  "decision conflict %s stays generic",
+  async (code) => {
+    vi.mocked(store.decide).mockRejectedValue(new RideRequestError(code));
+    const response = await call(`/${id}/decision`, "POST", {
+      decision: "accept",
+    });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: code });
+  },
+);
+it("accepted and rejected states are distinct from a still-pending request", () => {
+  expect(
+    requestStatusLabel(
+      { ...request, status: "accepted", decidedAt: now.toISOString() },
+      now.getTime(),
+    ),
+  ).toBe("ตอบรับแล้ว");
+  expect(
+    requestStatusLabel(
+      { ...request, status: "rejected", decidedAt: now.toISOString() },
+      now.getTime(),
+    ),
+  ).toBe("ปฏิเสธแล้ว");
+  expect(
+    rideRequestSchema.safeParse({
+      ...request,
+      offeredTrip: { ...request.offeredTrip, ownerId: actor },
+    }).success,
+  ).toBe(false);
 });
