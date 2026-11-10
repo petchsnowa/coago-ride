@@ -33,4 +33,4 @@ Local PostgreSQL17.11/PostGIS3.5.7 ตรวจเวอร์ชันในร
 
 ## Manual
 
-เจ้าของยืนยัน Phase2B create/edit/cancel/logout/relogin แล้ว ยังไม่อ้างว่าเจ้าของทดสอบหน้าค้นหา Phase2C เรียบร้อย
+เจ้าของยืนยัน Phase2B create/edit/cancel/logout/relogin แล้ว และส่งภาพค้นหา/เปิดรายละเอียดเที่ยวจริงบน COAGO Test สำเร็จหลัง merge PR #4 พบปัญหาส่วนหัว dialog เบียดกับปุ่มปิด ซึ่งแก้และเพิ่ม regression ใน [รายงาน layout](fix-trip-detail-layout.md) ยังไม่ยืนยัน manual cancelled-search flow
