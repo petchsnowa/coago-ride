@@ -2,16 +2,24 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { checkDatabase } from "@coago/db";
 import { liveSchema, readySchema, errorSchema } from "@coago/contracts";
-export type Bindings = {
-  ENVIRONMENT?: string;
-  DATABASE_URL?: string;
-  HYPERDRIVE?: { connectionString: string };
-  ALLOWED_ORIGINS?: string;
-};
+import { databaseUrl, type Bindings } from "./bindings";
+import { authRoutes, type AuthDependencies } from "./auth/routes";
+export type { Bindings } from "./bindings";
 export function createApp(
   check: (url: string) => Promise<void> = checkDatabase,
+  authDependencies: Partial<AuthDependencies> = {},
 ) {
   const app = new Hono<{ Bindings: Bindings }>();
+  app.use("*", async (c, next) => {
+    c.header("X-Content-Type-Options", "nosniff");
+    c.header("X-Frame-Options", "DENY");
+    c.header("Referrer-Policy", "no-referrer");
+    c.header(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://access.line.me",
+    );
+    await next();
+  });
   app.use(
     "*",
     cors({
@@ -26,20 +34,23 @@ export function createApp(
   );
   app.get("/health/live", (c) => c.json(liveSchema.parse({ status: "ok" })));
   app.get("/health/ready", async (c) => {
-    const url =
-      c.env.HYPERDRIVE?.connectionString ??
-      (["local", "test"].includes(c.env.ENVIRONMENT ?? "")
-        ? c.env.DATABASE_URL
-        : undefined);
     try {
-      if (!url) throw new Error("missing configuration");
-      await check(url);
+      await check(databaseUrl(c.env));
       return c.json(readySchema.parse({ status: "ready" }), 200);
     } catch {
       return c.json(readySchema.parse({ status: "unavailable" }), 503);
     }
   });
-  app.notFound((c) => c.json(errorSchema.parse({ error: "not_found" }), 404));
+  app.route("/api/auth", authRoutes(authDependencies));
+  app.notFound((c) => {
+    if (
+      c.env.ASSETS &&
+      !/^\/(?:api|health)(?:\/|$)/.test(c.req.path) &&
+      ["GET", "HEAD"].includes(c.req.method)
+    )
+      return c.env.ASSETS.fetch(c.req.raw);
+    return c.json(errorSchema.parse({ error: "not_found" }), 404);
+  });
   app.onError((_error, c) =>
     c.json(errorSchema.parse({ error: "internal_error" }), 500),
   );

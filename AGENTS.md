@@ -157,3 +157,7 @@ test:integration
 - บันทึกข้อเลือกสำคัญพร้อมเหตุผลใน docs/decisions ตามความจำเป็น แยก Draft ออกจาก Approved
 - ส่งรายงานภาษาไทยที่ระบุ: สิ่งที่เปลี่ยน, วิธีรัน, ผลแต่ละ check เป็น ผ่าน/ไม่ผ่าน/ไม่ได้รัน, หลักฐาน PostgreSQL/PostGIS และ Workers ที่ตรวจได้, ข้อจำกัดและงานถัดไป
 - อย่าอ้างว่า deploy แล้วหรือ connectivity ผ่านหากไม่ได้ทำจริง
+
+## งานหลัง Phase 1
+
+Phase 1 รวมเข้า main แล้ว งานรอบ LINE Login ที่เจ้าของเลือกและเตรียม COAGO Test ให้ใช้ขอบเขตใน docs/phase-2-line-login.md ทำเฉพาะ auth และ staging แยก ไม่เพิ่ม booking/production โดยอัตโนมัติ คงหลักการตรวจจริงและไม่เปิดเผย secrets ตามเดิม

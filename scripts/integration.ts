@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { sql } from "drizzle-orm";
 import { withDatabase, systemMetadata } from "@coago/db";
 import { testDatabaseUrl } from "./database";
@@ -14,7 +15,10 @@ await withDatabase(testDatabaseUrl(), async (db, client) => {
   const before = await client.query(
     "SELECT count(*) FROM drizzle.__drizzle_migrations",
   );
-  assert.equal(Number(before.rows[0].count), 1);
+  const journal = JSON.parse(
+    await readFile("packages/db/migrations/meta/_journal.json", "utf8"),
+  );
+  assert.equal(Number(before.rows[0].count), journal.entries.length);
   await db.transaction(async (tx) => {
     await tx
       .insert(systemMetadata)

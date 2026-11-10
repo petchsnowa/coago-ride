@@ -2,7 +2,7 @@
 
 เชื่อมคนที่ต้องการเดินทางต่างจังหวัดกับผู้ขับขี่ที่มีที่นั่งว่าง
 
-**Phase 1:** ฐานระบบและ health checks เท่านั้น ยังไม่เปิดรับจองหรือเข้าสู่ระบบ LINE Login เป็น Phase 2 ไม่มี production deployment
+**Phase 2A:** เพิ่ม LINE Login สำหรับช่อง COAGO Test แยกจากเว็บเดิม ยังไม่เปิดรับจองและไม่มี production deployment
 
 ## เอกสาร
 
@@ -12,6 +12,8 @@
 - [ขอบเขต Phase 1](docs/phase-1.md)
 - [ผลตรวจจริง](docs/verification-phase-1.md)
 - [ผล remote Hyperdrive และวิธีทดสอบ](docs/remote-hyperdrive.md)
+- [ขอบเขต LINE Login และการทดสอบ](docs/phase-2-line-login.md)
+- [ผลตรวจและ URL ทดสอบ LINE Login](docs/verification-line-login.md)
 
 ## เตรียมเครื่อง
 
@@ -45,6 +47,8 @@ pnpm db:migrate
 pnpm db:migrate
 pnpm test:integration
 pnpm test:workers
+pnpm test:auth:integration
+pnpm test:auth:workers
 pnpm exec playwright install chromium
 pnpm test:browser
 ```
@@ -58,7 +62,7 @@ pnpm test:browser
 
 ## ฐานข้อมูลและ migrations
 
-`packages/db/src/schema.ts` มีเพียง `system_metadata` และ migration เปิด PostGIS extension ยังไม่สร้าง schema บัญชีผู้ใช้หรือ booking ที่ต้องกำหนดรายละเอียดเพิ่มเติมใน Phase 2
+`packages/db/src/schema.ts` เริ่มจาก `system_metadata` และ migration เปิด PostGIS extension Phase 2A เพิ่ม schema auth ใน migration 0001; booking ยังไม่รวมในรอบนี้
 
 หลังแก้ schema ให้รัน `pnpm db:generate` ตรวจ SQL และ journal ที่ generate จริง หากเป็น custom SQL เช่น extension ให้ใส่ใน versioned migrations อย่างถูกต้อง ไม่แก้ migration ที่ใช้แล้วเพื่อเปลี่ยนประวัติ
 
@@ -101,6 +105,6 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 
 ## ข้อจำกัด
 
-ทดสอบ local TCP driver ใน Workers ได้ไม่เท่ากับทดสอบ remote Hyperdrive แล้ว ต้องเลือก provider และจัดเตรียม test/staging ที่ได้รับอนุญาตก่อนตรวจ remote connectivity ไม่มีการยืนยันตัวตนผู้ขับขี่ ระบบจอง หรือ LINE channel ใน Phase 1
+ทดสอบ local TCP driver ใน Workers ได้ไม่เท่ากับทดสอบ remote Hyperdrive แล้ว ต้องเลือก provider และจัดเตรียม test/staging ที่ได้รับอนุญาตก่อนตรวจ remote connectivity การเข้าสู่ระบบจริงยังต้องให้เจ้าของตั้ง callback และทดสอบกับบัญชี LINE; ไม่มีการยืนยันเอกสารผู้ขับขี่หรือระบบจองในรอบนี้
 
 ดูรายการผลจริงและ blockers ใน [verification](docs/verification-phase-1.md)
