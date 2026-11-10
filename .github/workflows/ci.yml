@@ -46,6 +46,7 @@ jobs:
       - run: pnpm test:decisions:integration
       - run: pnpm test:decisions:upgrade
       - run: pnpm test:database-readiness:integration
+      - run: pnpm test:production-bootstrap:integration
       - run: pnpm test:workers
       - run: pnpm test:auth:workers
       - run: pnpm exec playwright install --with-deps chromium

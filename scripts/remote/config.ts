@@ -13,17 +13,20 @@ export function parseTestOrigin(value: string): Origin {
   } catch {
     throw new Error("TEST_DATABASE_URL_INVALID");
   }
+  // Static codes identify the failed field without echoing credentials or the URL.
+  if (!["postgres:", "postgresql:"].includes(url.protocol))
+    throw new Error("NEON_URL_SCHEME_REQUIRED");
+  if (!url.hostname.endsWith(".neon.tech"))
+    throw new Error("NEON_HOST_REQUIRED");
+  if (url.hostname.includes("-pooler"))
+    throw new Error("NEON_DIRECT_HOST_REQUIRED");
+  if (!url.username || !url.password)
+    throw new Error("NEON_CREDENTIALS_REQUIRED");
+  if (url.pathname === "/") throw new Error("NEON_DATABASE_NAME_REQUIRED");
   if (
-    !["postgres:", "postgresql:"].includes(url.protocol) ||
-    !url.hostname.endsWith(".neon.tech") ||
-    url.hostname.includes("-pooler") ||
-    !url.username ||
-    !url.password ||
-    url.pathname === "/" ||
     !["require", "verify-full"].includes(url.searchParams.get("sslmode") ?? "")
-  ) {
-    throw new Error("EXPECTED_NEON_DIRECT_TEST_DATABASE_WITH_TLS");
-  }
+  )
+    throw new Error("NEON_TLS_REQUIRED");
   try {
     return {
       scheme: "postgres",

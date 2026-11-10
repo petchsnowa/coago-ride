@@ -80,3 +80,36 @@ it("authenticated probe requires an actual Hyperdrive binding", async () => {
     error: "HYPERDRIVE_BINDING_MISSING",
   });
 });
+
+it.each([
+  [
+    "https://ep-example.neon.tech/db?sslmode=require",
+    "NEON_URL_SCHEME_REQUIRED",
+  ],
+  ["postgresql://u:p@localhost/db?sslmode=require", "NEON_HOST_REQUIRED"],
+  [
+    "postgresql://u:p@ep-example-pooler.neon.tech/db?sslmode=require",
+    "NEON_DIRECT_HOST_REQUIRED",
+  ],
+  [
+    "postgresql://u@ep-example.neon.tech/db?sslmode=require",
+    "NEON_CREDENTIALS_REQUIRED",
+  ],
+  [
+    "postgresql://u:p@ep-example.neon.tech/?sslmode=require",
+    "NEON_DATABASE_NAME_REQUIRED",
+  ],
+  ["postgresql://u:p@ep-example.neon.tech/db", "NEON_TLS_REQUIRED"],
+])(
+  "identifies the invalid URL field without exposing the value",
+  (url, code) => {
+    try {
+      parseTestOrigin(url);
+      throw new Error("expected validation failure");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe(code);
+      expect((error as Error).message).not.toContain(url);
+    }
+  },
+);

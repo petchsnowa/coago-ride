@@ -138,3 +138,6 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 
 
 ตรวจ Direct DB/Hyperdrive แบบอ่านอย่างเดียวผ่าน [Database readiness workflow](.github/workflows/database-readiness.yml) ดูวิธีตั้ง production Environment/Direct host ใน [คู่มือ](docs/production-launch.md) ทดสอบตัวอ่าน metadata บนฐาน local ด้วย `pnpm test:database-readiness:integration` ไม่มี deploy/migrate จาก workflow นี้
+
+
+การสร้างตารางครั้งแรกใช้ [Production database bootstrap](.github/workflows/production-bootstrap.yml) แบบ manual จาก main สำหรับฐาน production ใหม่ที่ตรวจแล้วเท่านั้น ดู [ขั้นตอนและข้อจำกัด](docs/production-launch.md) `pnpm db:migrate` ยังคงจำกัด local/test ตามเดิม ทดสอบ bootstrap/rollback บน disposable DB ด้วย `pnpm test:production-bootstrap:integration` ไม่มี production deployment อัตโนมัติ
