@@ -27,7 +27,8 @@
     "test:decisions:upgrade": "tsx --env-file-if-exists=.env scripts/decisions-upgrade.ts",
     "release:check": "tsx scripts/release-check.ts",
     "test:database-readiness:integration": "tsx --env-file-if-exists=.env scripts/database-readiness-integration.ts",
-    "test:production-bootstrap:integration": "tsx --env-file-if-exists=.env scripts/production-bootstrap-integration.ts"
+    "test:production-bootstrap:integration": "tsx --env-file-if-exists=.env scripts/production-bootstrap-integration.ts",
+    "test:production-hyperdrive:workers": "tsx --env-file-if-exists=.env scripts/production-hyperdrive-workers.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261108.1",

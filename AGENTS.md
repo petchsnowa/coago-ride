@@ -185,3 +185,7 @@ Phase 1 รวมเข้า main แล้ว งานรอบ LINE Login �
 ## สร้างตาราง production ฐานใหม่
 
 หลัง read-only run42776963156 ผ่าน (PostgreSQL18.6/PostGIS3.6.4, appTables0) เจ้าของสั่งให้ทำต่อเพื่อสร้างตาราง อนุญาตเตรียม/รัน bootstrap migrations0000–0006 เฉพาะ Direct host ep-restless-brook-a12zmjkb.ap-southeast-1.aws.neon.tech / neondb ของ coago-production ที่ตรวจแล้ว ขั้นเขียนต้องเป็น manual workflow จาก main, แยกจาก read-only check, ปฏิเสธฐานที่มีข้อมูล/objectsนอกขอบเขต ไม่ merge/deploy/DNS โดยอัตโนมัติ ไม่แก้ guard local/test ของ db:migrate และไม่คัดลอกข้อมูล test
+
+## เชื่อม Hyperdrive production
+
+หลัง bootstrap production run42790784081 ผ่าน เจ้าของอนุญาตเชื่อมฐาน ให้ทำ manual workflow แยกสำหรับ coago-production-db บนบัญชี/Direct hostเดิมที่ตรวจแล้ว ใช้ authenticated remote preview กับ read-only metadata/spatial SQL แล้วหยุดpreview เก็บ Hyperdriveไว้ให้แอปขั้นถัดไป ไม่ update/delete configurationเดิม ไม่deployเว็บ/แก้DNS/LINEจากคำสั่งเชื่อมฐานนี้ ต้อง pin ID ก่อน reuse และตรวจ origin/cache disabled ทุกครั้ง

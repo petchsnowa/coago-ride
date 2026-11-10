@@ -136,3 +136,21 @@ Validation ของ code commit a70d0b7e69c1b16d79f72d03a038ec814001d520: local
 รันซ้ำบนฐานที่สร้างครบและยังว่างจะรายงาน already_initialized โดยไม่ migrate เพิ่ม ถ้ามีข้อมูลผู้ใช้/เที่ยว/คำขอ หรือ objectอื่น/historyไม่ตรง ให้หยุด ไม่มี drop/truncate/reset หาก migrationSQLล้มเหลว Drizzle rollback application migrations+historyทั้งหมด แต่ empty journal infrastructureอาจคงอยู่ สามารถลองใหม่หลังแก้สาเหตุโดยไม่ลบอะไร หาก post-migration verificationล้มเหลว ให้หยุดตรวจด้วยคน ไม่ถือว่าฐานพร้อมหรือ rollback schemaที่อาจสร้างสำเร็จแล้วโดยอัตโนมัติ
 
 หลัง workflowเข้า main ให้ Actions → Production database bootstrap → Run workflow → main → operation bootstrap → project_confirmation coago-production → Run workflow ต้องเห็น `PRODUCTION_BOOTSTRAP_RESULT` migrations7/appTables8 และ PASS ก่อนเตรียม Hyperdrive/Worker ของproduction ขั้นนี้ไม่ deployเว็บ ไม่แก้ DNS/LINE และไม่ทำให้ coago.space ที่ยัง521เปลี่ยนปลายทาง
+
+## เชื่อม Hyperdrive หลัง bootstrap สำเร็จ
+
+[Production bootstrap run42790784081](https://github.com/petchsnowa/coago-ride/actions/runs/42790784081) สำเร็จจริง วันที่10พ.ย.2026: initialized, migrations7/appTables8, schema/historyผ่าน ไม่มี test rows copy เจ้าของอนุญาตเชื่อมฐานต่อแล้ว
+
+เพิ่ม **Production Hyperdrive connection** แบบ manual workflow จาก main/Environment production เท่านั้น ใช้ค่าฐานและ Cloudflare credentialsเดิม ตรวจบัญชีca1d36a602c74e57ebacaf8676da3eebและDirect host/neondbที่อนุมัติ, Direct TLS verified/read-only preflight, schema8/journalhash7 ก่อนสร้าง resource
+
+สร้าง Hyperdrive ชื่อ `coago-production-db` พร้อม query caching disabled ไม่มี UPDATE/DELETE ของ Hyperdriveเดิม หากมีชื่ออยู่แล้วต้อง pin `COAGO_PRODUCTION_HYPERDRIVE_ID` ใน production Environment variables ให้ตรง ID และตรวจ host/database/user/port/scheme/cache ก่อน reuse ไม่เอา configurationที่มีชื่อเหมือนกันมาใช้โดยอัตโนมัติ
+
+จากนั้น remote Workers preview ที่มี tokenสุ่มต่อrun ตรวจ unauthorized404, อ่าน schema metadata ใน BEGIN READ ONLY และ spatial SELECT จาก Hyperdrive→Neon ต้องได้ appTables8/migrations7/PostGIS/SRID4326 ไม่เรียก APIสร้าง session/trip/request ไม่ใช้ staging synthetic smoke กับ production ไม่มีแอป/LINE/โดเมน production deployment
+
+Previewมีชื่อเฉพาะrun/attempt, workers_dev=false, token/configfileถูกmaskและเก็บชั่วคราวpermissions0600 ปิดpreviewและลบไฟล์เมื่อจบ ไม่สร้าง public app Worker ถ้า timeout/cancel remote previewอาจรอ provider expiry ไม่ถือว่าทดสอบสำเร็จ
+
+Hyperdriveคงอยู่ทั้งเมื่อทดสอบผ่านหรือล้มเหลวเพื่อให้ตรวจ/ใช้ต่อ ไม่ลบทรัพยากร productionเพื่อแก้ failure IDแสดงใน logs/summary (ไม่ใช่ secret) ถ้าล้มก่อนverify ให้ใช้IDที่สร้างในการตรวจ/retry ไม่สร้างซ้ำหรือทับตัวเดิม Metadataไม่พิสูจน์รหัสผ่านของconfigที่reuse; ต้องรอผล remoteprobeผ่านจริง
+
+หลัง workflowเข้าmain: Actions → Production Hyperdrive connection → Run workflow → main → project_confirmation `coago-production` → Run workflow เมื่อผ่านต้องเห็น `PRODUCTION_HYPERDRIVE_PASS` แล้วบันทึก ID ใน Environment production variable `COAGO_PRODUCTION_HYPERDRIVE_ID` เพื่อใช้ขั้นเว็บจริง/rerun ผู้ใช้ยังไม่ต้องตั้งIDในการสร้างครั้งแรก
+
+ผล local ของรอบนี้:200 unit/API/policy/worker testsผ่าน, lint/typecheckผ่าน, probe bundle dry runและ local Workers runtimeกับPostgreSQL/PostGISจริงผ่าน (JSON Hyperdrive fixture ไม่ใช่หลักฐานremote Hyperdrive) ยังไม่สร้าง Hyperdrive productionจริงจนกว่า manual workflow จะรัน และยังไม่แก้DNS/LINE หรือเปิดเว็บproduction

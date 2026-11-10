@@ -141,3 +141,5 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 
 
 การสร้างตารางครั้งแรกใช้ [Production database bootstrap](.github/workflows/production-bootstrap.yml) แบบ manual จาก main สำหรับฐาน production ใหม่ที่ตรวจแล้วเท่านั้น ดู [ขั้นตอนและข้อจำกัด](docs/production-launch.md) `pnpm db:migrate` ยังคงจำกัด local/test ตามเดิม ทดสอบ bootstrap/rollback บน disposable DB ด้วย `pnpm test:production-bootstrap:integration` ไม่มี production deployment อัตโนมัติ
+
+หลัง bootstrap ใช้ [Production Hyperdrive connection](.github/workflows/production-hyperdrive.yml) แบบ manual เพื่อสร้าง/pin config ใหม่และตรวจ remote preview ด้วย read-only SQL ดู [คู่มือ](docs/production-launch.md) Local runtime check คือ `pnpm test:production-hyperdrive:workers` ซึ่งใช้ JSON bindingกับฐานlocal ไม่ใช่หลักฐาน remote Hyperdrive ไม่มี deployแอป/เปลี่ยนDNSใน workflowเชื่อมฐาน
