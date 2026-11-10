@@ -177,3 +177,7 @@ Phase 1 รวมเข้า main แล้ว งานรอบ LINE Login �
 ## Phase 2E — ตอบรับคำขอและจัดสรรที่นั่ง
 
 เจ้าของสั่งดำเนินการหลังทดสอบส่ง/ยกเลิกคำขอแล้ว ให้ทำต่อบน PR #6 ตาม docs/phase-2e-decisions.md แทนข้อจำกัด pending-only ของ Phase 2D: เจ้าของตอบรับ/ปฏิเสธ หักที่นั่งเมื่อ accepted และคืนเมื่อยกเลิกก่อนออกเดินทาง ล็อก trip ใน transaction ป้องกัน overbooking/retry ซ้ำ เก็บ snapshot เงื่อนไขและตรวจ content version ไม่แก้ข้อตกลงเมื่อมีผู้ตอบรับแล้ว ยังคง Draft ไม่ merge ไม่ production และไม่เพิ่มการชำระเงิน
+
+## เตรียม production
+
+หลัง PR #6 merged เจ้าของยืนยัน manual acceptance/refund ผ่านและเลือก coago.space เดิม พร้อมอนุญาตสร้างฐาน production ใหม่แยกจาก test ใช้ขอบเขต/สถานะจริงใน docs/production-launch.md ห้ามอ้างว่าสร้าง Neon แล้วหากยังไม่มีสิทธิ์เข้า ทำ readiness/runbook ต่อบน branch/PR ใหม่ ไม่ merge/deploy/migrate production/DNS โดยอัตโนมัติ ตรวจและเตรียม config ที่ review ได้ก่อนการเปิดจริง
