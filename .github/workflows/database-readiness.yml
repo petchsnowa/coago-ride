@@ -7,6 +7,7 @@ on:
       - scripts/database-readiness/**
       - scripts/database-readiness.ts
       - scripts/staging/diagnose-bindings.ts
+      - scripts/release/domain-readiness.ts
   workflow_dispatch:
     inputs:
       target:
@@ -45,6 +46,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           COAGO_TEST_DATABASE_URL: ${{ secrets.COAGO_TEST_DATABASE_URL }}
         run: pnpm exec tsx scripts/staging/diagnose-bindings.ts
+      - name: Inspect coago.space DNS and Worker routing metadata (GET only)
+        if: success() || failure()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: pnpm exec tsx scripts/release/domain-readiness.ts
   production-database:
     if: github.repository == 'petchsnowa/coago-ride' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.target == 'production'
     environment: production
