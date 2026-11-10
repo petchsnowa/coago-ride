@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | Manual สองบัญชี | เจ้าของยืนยัน LINE Login/ส่ง/ดู/ยกเลิกก่อนหน้า และยืนยันตอบรับพร้อมคืนที่นั่งถูกต้องรอบนี้ | ทดลองปฏิเสธพร้อมเหตุผลด้วยบัญชีจริง; automated rejection ผ่านแล้ว |
 | Code review | PR #6 merged แล้ว; main `0ea43cc914f13658f9a2d5df7d20fb5482a8b6b0` | ตรวจ PR เตรียม production รอบใหม่ แยกจาก PR #6 |
-| ฐาน production | เจ้าของอนุญาตสร้างใหม่; agent ยังไม่มี Neon connector/API credential/browser control สำหรับสร้าง | สร้าง project เปล่า `coago-production`, ไม่ใช้ coago-test, ไม่ตั้ง auto-delete; ตรวจ backup/restore |
+| ฐาน production | เจ้าของแจ้งว่าสร้าง project coago-production ใหม่แล้ว; agent ยังไม่มีสิทธิ์ตรวจ config/ข้อมูลใน Neon | ตรวจว่าเป็นฐานเปล่าแยกจาก coago-test, ไม่ตั้ง auto-delete; เปิด/ตรวจ PostGIS และ backup/restore |
 | LINE production | มี channel เดิมจากประวัติ; ไม่ได้อ่านค่าปัจจุบันและยังไม่เปลี่ยน | ตรวจ channel ID/secret/Published/callback ให้ตรง coago.space |
 | Worker/โดเมน | เว็บ staging ผ่าน; ยังไม่เปลี่ยนเส้นทางเดิมของ coago.space | สำรวจ Worker/route/DNS เดิม, เตรียม config แยก, เลือก cutover/rollback |
 | การดูแลผู้ใช้ | มี auth/CSRF/privacy projections และสถานะ API | ยืนยันผู้รับผิดชอบ/ช่องทางติดต่อ, privacy/terms/retention, error monitoring, ทดสอบกู้คืน |
@@ -32,7 +32,7 @@ CI code เดิมผ่าน [42769101809](https://github.com/petchsnowa/coa
 6. ก่อน migrate ต้องมี production migration path แยกที่ตรวจ project/branch/host ที่ยืนยันไว้ และได้รับอนุญาตรันกับฐานใหม่ คำสั่ง `pnpm db:migrate` ปัจจุบันจำกัด local/test โดยตั้งใจ **อย่าถอด guard เพื่อใช้กับ production** และอย่าใช้ staging/deploy.ts (มี guard test channel/test database)
 7. ใช้ migrations0000–0006กับฐานเปล่าและตรวจ migration journal/constraints/seat invariants ไม่มีการ import users/trips/ride_requests จาก test
 
-การสร้าง project ใหม่ยังไม่เสร็จจนได้รับผลจริง ขณะนี้ไม่มีสิทธิ์ Neon ของ agent จึงต้องให้เจ้าของสร้างผ่าน console หรือเชื่อมช่องทางเข้าถึงที่รองรับก่อน
+เจ้าของแจ้งว่าสร้าง project `coago-production` ผ่าน console แล้วในวันที่10พ.ย.2026 ยังไม่ยืนยัน PostGIS/version/auto-delete/backup settings และยังไม่ได้ migrate schema ไม่มีสิทธิ์ Neon ของ agent จึงไม่อ้างว่าได้ตรวจภายในหรือเชื่อมฐานใหม่แล้ว
 
 ## ค่าที่ต้องกำหนดก่อนเตรียม deploy จริง
 
