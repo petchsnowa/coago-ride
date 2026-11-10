@@ -165,3 +165,7 @@ Phase 1 รวมเข้า main แล้ว งานรอบ LINE Login �
 ## Phase 2B — ประกาศเที่ยว
 
 หลังเจ้าของรวม PR #2 และสั่งเริ่มงาน ให้ทำขอบเขตใน docs/phase-2b-trips.md: สร้าง/ดู/แก้ไข/ยกเลิกเฉพาะเที่ยวของตน ใช้ COAGO Test staging เดิม ตรวจสิทธิ์ CSRF, idempotency และ version conflicts ยังไม่เพิ่ม search/booking/payments หรือ production โดยอัตโนมัติ
+
+## Phase 2C — ค้นหาและรายละเอียด
+
+เจ้าของรวม PR #3 และสั่งให้เริ่มขอบเขตใน docs/phase-2c-discovery.md ค้นหาเส้นทาง/วันไทยและดูรายละเอียดเฉพาะเที่ยวที่ยังเปิดและอยู่ในอนาคต Public DTO ต้องไม่เปิดเผย owner/LINE/session/internal fields แยกจาก owner API คงตรวจจริงบน COAGO Test เดิม ไม่เพิ่ม booking/payments/production โดยอัตโนมัติ

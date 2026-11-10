@@ -113,3 +113,7 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 ## ประกาศเที่ยว Phase 2B
 
 ดูขอบเขต API, กติกาเวลาไทย/สตางค์, วิธีลองประกาศ–แก้ไข–ยกเลิก และการตรวจจริงใน [คู่มือ Phase 2B](docs/phase-2b-trips.md) และ [ผลตรวจ](docs/verification-phase-2b.md) รายการเที่ยวเป็นส่วนตัวเฉพาะเจ้าของ ยังไม่มี search หรือ booking
+
+## ค้นหาเที่ยว Phase 2C
+
+ค้นหาต้นทาง/ปลายทาง/วันเดินทางและดูรายละเอียดโดยไม่ต้อง login ใช้เฉพาะเที่ยวที่ยังเปิดและอยู่ในอนาคต ดู [คู่มือและ public data contract](docs/phase-2c-discovery.md) และ [ผลตรวจ](docs/verification-phase-2c.md) เพิ่มคำสั่ง `pnpm test:discovery:integration` หลัง migrate เพื่อทดสอบจริงบนฐาน local/test; ยังไม่มี booking/payments

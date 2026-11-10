@@ -2,7 +2,12 @@ name: LINE Login staging
 on:
   workflow_dispatch:
   push:
-    branches: [codex/phase-2-line-login, codex/phase-2b-trip-posting]
+    branches:
+      [
+        codex/phase-2-line-login,
+        codex/phase-2b-trip-posting,
+        codex/phase-2c-trip-search,
+      ]
     paths:
       - .github/workflows/line-login-staging.yml
       - scripts/staging/**

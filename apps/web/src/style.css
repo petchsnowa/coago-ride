@@ -381,22 +381,26 @@ footer {
   font-size: 14px;
   color: #506d50;
 }
-.trip-card dl {
+.trip-card dl,
+.public-trip-detail dl {
   font-size: 14px;
   margin: 20px 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px 24px;
 }
-.trip-card dl div {
+.trip-card dl div,
+.public-trip-detail dl div {
   min-width: 0;
 }
-.trip-card dt {
+.trip-card dt,
+.public-trip-detail dt {
   font-size: 11px;
   color: #72806d;
   margin-bottom: 4px;
 }
-.trip-card dd {
+.trip-card dd,
+.public-trip-detail dd {
   margin: 0;
   white-space: pre-wrap;
 }
@@ -455,7 +459,8 @@ footer {
   .trip-card-top {
     flex-direction: column;
   }
-  .trip-card dl {
+  .trip-card dl,
+  .public-trip-detail dl {
     grid-template-columns: 1fr;
   }
   .trip-card h4 {
@@ -473,4 +478,88 @@ footer {
   .trips-heading h2 {
     font-size: 23px;
   }
+}
+
+.discovery {
+  margin: 32px 0 48px;
+}
+.discovery > h2 {
+  margin: 8px 0;
+}
+.search-form {
+  margin: 24px 0;
+}
+.search-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.search-cards {
+  display: grid;
+  gap: 18px;
+}
+.search-card {
+  margin: 0;
+}
+.search-results > h3 {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.more-results {
+  margin-top: 20px;
+}
+.trip-dialog {
+  width: min(760px, calc(100% - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 28px;
+  border: 1px solid #b5c5b7;
+  border-radius: 20px;
+  background: #f9faf6;
+  color: #132f2a;
+  overflow-y: auto;
+}
+.trip-dialog::backdrop {
+  background: rgb(19 47 42 / 50%);
+}
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.detail-header h2 {
+  font-size: 22px;
+  margin: 0;
+}
+.detail-header button {
+  flex-shrink: 0;
+}
+.public-trip-detail {
+  padding-top: 20px;
+  overflow-wrap: anywhere;
+}
+.public-trip-detail dd {
+  white-space: pre-wrap;
+}
+.detail-conditions {
+  grid-column: 1 / -1;
+}
+@media (max-width: 640px) {
+  .search-grid {
+    grid-template-columns: 1fr;
+  }
+  .trip-dialog {
+    padding: 18px;
+  }
+  .detail-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+.search-card h3 {
+  font-size: 20px;
+  margin: 0;
+  line-height: 1.5;
 }

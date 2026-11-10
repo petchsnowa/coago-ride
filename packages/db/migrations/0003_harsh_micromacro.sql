@@ -1,0 +1,1 @@
+CREATE INDEX "trips_search_active_idx" ON "trips" USING btree ("origin_province","destination_province","departure_at","id") WHERE "trips"."status"='active';
