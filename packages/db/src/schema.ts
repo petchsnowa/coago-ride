@@ -108,6 +108,9 @@ export const trips = pgTable(
   (t) => [
     uniqueIndex("trips_owner_request_idx").on(t.ownerId, t.requestId),
     index("trips_owner_created_idx").on(t.ownerId, t.createdAt, t.id),
+    index("trips_search_active_idx")
+      .on(t.originProvince, t.destinationProvince, t.departureAt, t.id)
+      .where(sql`${t.status}='active'`),
     check("trips_seats_range", sql`${t.seats} between 1 and 8`),
     check(
       "trips_contribution_range",

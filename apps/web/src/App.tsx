@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { readySchema, type AuthState } from "@coago/contracts";
 import AuthPanel from "./AuthPanel";
 import TripsPanel from "./TripsPanel";
+import SearchTrips from "./SearchTrips";
 export default function App() {
   const [account, setAccount] = useState<AuthState | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
@@ -57,13 +58,14 @@ export default function App() {
           <span>จุดหมายเดียวกัน</span>
         </div>
       </section>
+      <SearchTrips />
       <AuthPanel onAccountChange={setAccount} />
       <TripsPanel account={account} />
       <section className="system" aria-labelledby="system-title">
         <div>
           <p className="eyebrow">เริ่มต้นไปด้วยกัน</p>
           <h2 id="system-title">เรากำลังเตรียม COAGO ให้พร้อม</h2>
-          <p>ระยะที่ 2: ทดสอบการเข้าสู่ระบบ ยังไม่เปิดรับจอง</p>
+          <p>ระยะที่ 2: ค้นหาและประกาศเที่ยว ยังไม่เปิดรับจอง</p>
         </div>
         <div className="check">
           <button onClick={check} disabled={status === "loading"}>

@@ -29,3 +29,4 @@ export const authStateSchema = z.union([
 export type AuthState = z.infer<typeof authStateSchema>;
 
 export * from "./trips";
+export * from "./discovery";

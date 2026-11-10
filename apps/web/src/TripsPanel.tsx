@@ -383,7 +383,7 @@ function OwnedTrips({ csrfToken }: { csrfToken: string }) {
         <div>
           <p className="eyebrow">ไปด้วยกันได้อีกหนึ่งเส้นทาง</p>
           <h2 id="trips-title">เที่ยวเดินทางของฉัน</h2>
-          <p>ประกาศสำหรับทดสอบ · ยังไม่มีระบบจองที่นั่ง</p>
+          <p>ประกาศที่เปิดอยู่จะแสดงในหน้าค้นหา · ยังไม่มีระบบจองที่นั่ง</p>
         </div>
         <span className="badge">เฉพาะบัญชีของคุณ</span>
       </div>
@@ -426,6 +426,10 @@ function OwnedTrips({ csrfToken }: { csrfToken: string }) {
         </fieldset>
         <fieldset disabled={busy}>
           <legend>รถและเงื่อนไขร่วมทาง</legend>
+          <p className="field-help">
+            ไม่ใส่เบอร์โทร LINE ID หรือทะเบียนรถเต็มในประกาศและเงื่อนไข
+            เพราะรายละเอียดเที่ยวที่เปิดอยู่แสดงต่อผู้ค้นหา
+          </p>
           <div className="trip-grid">
             {input("vehicleModel", "ยี่ห้อและรุ่นรถ", {
               maxLength: 80,

@@ -5,11 +5,16 @@ import { liveSchema, readySchema, errorSchema } from "@coago/contracts";
 import { databaseUrl, type Bindings } from "./bindings";
 import { authRoutes, type AuthDependencies } from "./auth/routes";
 import { tripRoutes, type TripDependencies } from "./trips/routes";
+import {
+  discoveryRoutes,
+  type DiscoveryDependencies,
+} from "./discovery/routes";
 export type { Bindings } from "./bindings";
 export function createApp(
   check: (url: string) => Promise<void> = checkDatabase,
   authDependencies: Partial<AuthDependencies> = {},
   tripDependencies: Partial<TripDependencies> = {},
+  discoveryDependencies: Partial<DiscoveryDependencies> = {},
 ) {
   const app = new Hono<{ Bindings: Bindings }>();
   app.use("*", async (c, next) => {
@@ -44,6 +49,7 @@ export function createApp(
     }
   });
   app.route("/api/auth", authRoutes(authDependencies));
+  app.route("/api/discovery/trips", discoveryRoutes(discoveryDependencies));
   app.route(
     "/api/trips",
     tripRoutes({

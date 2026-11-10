@@ -20,7 +20,8 @@
     "audit": "pnpm audit --audit-level high",
     "test:auth:integration": "tsx --env-file-if-exists=.env scripts/auth-integration.ts",
     "test:auth:workers": "tsx --env-file-if-exists=.env scripts/auth-workers.ts",
-    "test:trips:integration": "tsx --env-file-if-exists=.env scripts/trips-integration.ts"
+    "test:trips:integration": "tsx --env-file-if-exists=.env scripts/trips-integration.ts",
+    "test:discovery:integration": "tsx --env-file-if-exists=.env scripts/discovery-integration.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261108.1",

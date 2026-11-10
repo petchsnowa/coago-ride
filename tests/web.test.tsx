@@ -37,15 +37,21 @@ it("shows loading, failure and successful retry", async () => {
       : fetch(url, init),
   );
   render(<App />);
-  fireEvent.click(screen.getByRole("button"));
-  expect(screen.getByRole("button")).toBeDisabled();
+  fireEvent.click(
+    screen.getByRole("button", { name: /ตรวจสถานะระบบ|ลองอีกครั้ง/ }),
+  );
+  expect(screen.getByRole("button", { name: "กำลังตรวจสอบ…" })).toBeDisabled();
   resolve(
     new Response(JSON.stringify({ status: "unavailable" }), { status: 503 }),
   );
   await screen.findByRole("button", { name: "ลองอีกครั้ง" });
-  fireEvent.click(screen.getByRole("button"));
+  fireEvent.click(
+    screen.getByRole("button", { name: /ตรวจสถานะระบบ|ลองอีกครั้ง/ }),
+  );
   await waitFor(() =>
-    expect(screen.getByRole("status")).toHaveTextContent("ระบบพร้อม"),
+    expect(screen.getByText("ระบบพร้อมสำหรับการพัฒนาต่อ")).toHaveTextContent(
+      "ระบบพร้อม",
+    ),
   );
 });
 it("times out and re-enables retry", async () => {
@@ -68,7 +74,9 @@ it("times out and re-enables retry", async () => {
         ),
   );
   render(<App />);
-  fireEvent.click(screen.getByRole("button"));
+  fireEvent.click(
+    screen.getByRole("button", { name: /ตรวจสถานะระบบ|ลองอีกครั้ง/ }),
+  );
   await act(async () => {
     await vi.advanceTimersByTimeAsync(8000);
   });

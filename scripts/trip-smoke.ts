@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { tripResponseSchema, tripListSchema } from "@coago/contracts";
+import {
+  tripResponseSchema,
+  tripListSchema,
+  publicTripListSchema,
+  publicTripResponseSchema,
+  toBangkokInput,
+} from "@coago/contracts";
 export type SmokeActor = { cookie: string; csrfToken: string };
 export type SmokeRequest = (
   path: string,
@@ -40,6 +46,51 @@ export async function tripSmoke(
   const { trip } = tripResponseSchema.parse(await first.json());
   assert.equal(trip.version, 1);
   assert.equal(trip.contributionSatang, 10025);
+  const filters = new URLSearchParams({
+    originProvince: draft.originProvince,
+    destinationProvince: draft.destinationProvince,
+    date: toBangkokInput(trip.departureAt).slice(0, 10),
+  });
+  const publicPath = `/api/discovery/trips?${filters}`;
+  const listed = await request(publicPath, "GET");
+  assert.equal(listed.status, 200, "PUBLIC_SEARCH_HTTP_FAILED");
+  const publicList = publicTripListSchema.parse(await listed.json());
+  // Real user trips can coexist on staging; inspect only our synthetic record.
+  let publicTrip = publicList.trips.find((t) => t.id === trip.id),
+    next = publicList.nextCursor;
+  while (!publicTrip && next) {
+    const response = await request(
+      `${publicPath}&cursor=${encodeURIComponent(next)}`,
+      "GET",
+    );
+    assert.equal(response.status, 200);
+    const page = publicTripListSchema.parse(await response.json());
+    publicTrip = page.trips.find((t) => t.id === trip.id);
+    next = page.nextCursor;
+  }
+  assert(publicTrip, "SYNTHETIC_TRIP_NOT_DISCOVERABLE");
+  assert.equal(publicTrip.seats, 3);
+  const detailResponse = await request(
+    `/api/discovery/trips/${trip.id}`,
+    "GET",
+  );
+  assert.equal(detailResponse.status, 200);
+  const publicDetail = publicTripResponseSchema.parse(
+    await detailResponse.json(),
+  ).trip;
+  assert.equal(publicDetail.pickupPoint, draft.pickupPoint);
+  for (const key of [
+    "ownerId",
+    "requestId",
+    "payloadHash",
+    "csrfToken",
+    "version",
+    "cancellationReason",
+    "displayName",
+    "subject",
+  ])
+    assert(!(key in publicDetail));
+
   const replay = await request("/api/trips", "POST", a, create);
   assert.equal(replay.status, 200);
   assert.equal(tripResponseSchema.parse(await replay.json()).trip.id, trip.id);
@@ -72,6 +123,12 @@ export async function tripSmoke(
   const edited = tripResponseSchema.parse(await changed.json()).trip;
   assert.equal(edited.version, 2);
   assert.equal(edited.seats, 2);
+  const updatedPublic = await request(`/api/discovery/trips/${trip.id}`, "GET");
+  assert.equal(updatedPublic.status, 200);
+  assert.equal(
+    publicTripResponseSchema.parse(await updatedPublic.json()).trip.seats,
+    2,
+  );
   assert.equal(
     (await request(`/api/trips/${trip.id}`, "PUT", a, update)).status,
     409,
@@ -88,6 +145,20 @@ export async function tripSmoke(
   assert.equal(final.version, 3);
   assert.equal(final.status, "cancelled");
   assert.equal(final.cancellationReason, cancellation.reason);
+  assert.equal(
+    (await request(`/api/discovery/trips/${trip.id}`, "GET")).status,
+    404,
+  );
+  const afterCancellation = await request(publicPath, "GET");
+  assert.equal(afterCancellation.status, 200);
+  assert(
+    !publicTripListSchema
+      .parse(await afterCancellation.json())
+      .trips.some((t) => t.id === trip.id),
+  );
+  console.log(
+    "PASS anonymous discovery HTTP: route/Thai-date search, public projection, detail update visibility and cancelled detail/search exclusion",
+  );
   const repeated = await request(
     `/api/trips/${trip.id}/cancel`,
     "POST",

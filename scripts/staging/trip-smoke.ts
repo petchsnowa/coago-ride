@@ -62,7 +62,7 @@ async function main() {
       actors[1],
     );
     console.log(
-      "PASS remote Workers -> Hyperdrive -> Neon: trip create/list/update/cancel, ownership, CSRF, replay and version conflict (synthetic sessions)",
+      "PASS remote Workers -> Hyperdrive -> Neon: trip CRUD plus anonymous public search/detail, ownership, privacy projection, CSRF, replay and version conflict (synthetic sessions)",
     );
   } finally {
     if (ids.length)
@@ -81,7 +81,7 @@ async function main() {
   if (process.env.GITHUB_STEP_SUMMARY)
     await appendFile(
       process.env.GITHUB_STEP_SUMMARY,
-      "\n## Phase 2B remote trip verification\n\nReal HTTPS Workers → Hyperdrive → Neon CRUD passed using two disposable synthetic sessions: owner-only list/edit/cancel, CSRF rejection, duplicate create retry, stale version rejection and immutable cancelled trip. Synthetic accounts and their trips/sessions removed. Real LINE login was previously owner-tested; this smoke test does not replace a new manual trip walkthrough.\n",
+      "\n## Phase 2B remote trip verification\n\nReal HTTPS Workers → Hyperdrive → Neon CRUD and anonymous discovery passed using two disposable synthetic sessions: public route/Thai-date search, safe detail projection, updated-seat visibility, cancelled detail/search exclusion, owner-only list/edit/cancel, CSRF rejection, duplicate create retry, stale version rejection and immutable cancelled trip. Synthetic accounts and their trips/sessions removed. Real LINE login was previously owner-tested; this smoke test does not replace a new manual trip walkthrough.\n",
     );
 }
 main().catch(() => {

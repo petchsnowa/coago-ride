@@ -13,7 +13,11 @@ test("home and readiness interaction", async ({ page }) => {
     "ต่างจังหวัด",
   );
   await page.getByRole("button", { name: "ตรวจสถานะระบบ" }).click();
-  await expect(page.getByRole("status")).toContainText("ระบบพร้อม");
+  await expect(
+    page
+      .getByRole("region", { name: "เรากำลังเตรียม COAGO ให้พร้อม" })
+      .getByRole("status"),
+  ).toContainText("ระบบพร้อม");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
