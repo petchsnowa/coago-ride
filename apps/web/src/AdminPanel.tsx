@@ -1,3 +1,4 @@
+import AdminAccounts from "./AdminAccounts";
 import { useEffect, useRef, useState } from "react";
 import {
   adminRoleSchema,
@@ -126,8 +127,10 @@ function PrivateAdmin({
       .then((data) => {
         if (current) {
           const next = adminRoleSchema.parse(data).role;
-          setRole(next);
-          onRole(next !== "user");
+          const allowed =
+            !window.location.pathname.startsWith("/root") || next === "root";
+          setRole(allowed ? next : "user");
+          onRole(allowed && next !== "user");
         }
       })
       .catch(() => {
@@ -255,6 +258,9 @@ function PrivateAdmin({
     settings_changed: "เปลี่ยนการเปิดบริการ",
     admin_granted: "แต่งตั้ง Admin",
     admin_revoked: "ถอนสิทธิ์ Admin",
+    profile_reviewed: "ตรวจข้อมูลสมาชิก",
+    vehicle_reviewed: "ตรวจข้อมูลรถ",
+    private_document_viewed: "เปิดข้อมูลส่วนตัวเพื่อตรวจสอบ",
   };
   return (
     <section className="admin-panel" aria-labelledby="admin-title">
@@ -262,6 +268,9 @@ function PrivateAdmin({
         {role === "root" ? "ผู้ดูแลสูงสุด" : "ผู้ดูแลระบบ"}
       </p>
       <h2 id="admin-title">{role === "root" ? "Root Admin" : "Admin"}</h2>
+      {role === "root" && (
+        <AdminAccounts csrf={csrf} onChange={() => void load()} />
+      )}
       <div className="admin-tabs">
         {(Object.keys(labels) as Tab[])
           .filter((key) => role === "root" || key !== "settings")

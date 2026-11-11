@@ -63,7 +63,9 @@ test("Root Admin tabs, required reason and layout on mobile and desktop", async 
   await page.getByRole("button", { name: "ระงับผู้ใช้", exact: true }).click();
   const confirm = page.getByRole("button", { name: "ยืนยันและบันทึกประวัติ" });
   await expect(confirm).toBeDisabled();
-  await page.getByRole("textbox").fill("ตรวจสอบรายการ");
+  await page
+    .getByRole("textbox", { name: "เหตุผลการจัดการ (จำเป็น)" })
+    .fill("ตรวจสอบรายการ");
   await confirm.click();
   await expect.poll(() => mutations).toBe(1);
   expect(

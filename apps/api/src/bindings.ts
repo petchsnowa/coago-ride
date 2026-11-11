@@ -1,6 +1,19 @@
 export type Bindings = {
   ENVIRONMENT?: string;
   DATABASE_URL?: string;
+  PRIVATE_DOCUMENTS?: {
+    put(
+      key: string,
+      value: string,
+      options?: { httpMetadata: { contentType: string } },
+    ): Promise<unknown>;
+    get(key: string): Promise<{ text(): Promise<string> } | null>;
+    delete(key: string): Promise<unknown>;
+  };
+  MEMBER_DATA_KEY?: string;
+  ORS_API_KEY?: string;
+  NEON_ADMIN_AUTH_URL?: string;
+  ROOT_ADMIN_EMAIL?: string;
   HYPERDRIVE?: { connectionString: string };
   ALLOWED_ORIGINS?: string;
   APP_ORIGIN?: string;

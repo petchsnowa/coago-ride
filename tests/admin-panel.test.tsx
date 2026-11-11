@@ -120,9 +120,12 @@ it("requires confirmation and a reason before opening service", async () => {
   fireEvent.click(
     screen.getByRole("button", { name: "ตรวจและยืนยันการเปิด–ปิดบริการ" }),
   );
-  fireEvent.change(screen.getByRole("textbox"), {
-    target: { value: "พร้อมทดสอบ" },
-  });
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "เหตุผลการจัดการ (จำเป็น)" }),
+    {
+      target: { value: "พร้อมทดสอบ" },
+    },
+  );
   fireEvent.click(
     screen.getByRole("button", { name: "ยืนยันและบันทึกประวัติ" }),
   );
@@ -171,9 +174,12 @@ it("root appointment requires a reason and sends role/version with CSRF", async 
   expect(
     screen.getByRole("button", { name: "ยืนยันและบันทึกประวัติ" }),
   ).toBeDisabled();
-  fireEvent.change(screen.getByRole("textbox"), {
-    target: { value: "Trusted administrator" },
-  });
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "เหตุผลการจัดการ (จำเป็น)" }),
+    {
+      target: { value: "Trusted administrator" },
+    },
+  );
   fireEvent.click(
     screen.getByRole("button", { name: "ยืนยันและบันทึกประวัติ" }),
   );

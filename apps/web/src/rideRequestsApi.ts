@@ -1,5 +1,7 @@
 import type { RideRequest } from "@coago/contracts";
 export const requestMessages: Record<string, string> = {
+  member_verification_required:
+    "กรุณาส่งข้อมูลสมาชิกที่ /account และรอผู้ดูแลอนุมัติก่อน",
   unauthorized: "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่",
   forbidden: "สิทธิ์เปลี่ยน กรุณารีเฟรชหน้าแล้วลองใหม่",
   own_trip: "คุณเป็นเจ้าของเที่ยวนี้ จึงส่งคำขอให้ตนเองไม่ได้",

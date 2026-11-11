@@ -1,3 +1,4 @@
+import { MembershipError } from "../membership/eligibility";
 import { Hono } from "hono";
 import { getCookie } from "hono/cookie";
 import { bodyLimit } from "hono/body-limit";
@@ -16,7 +17,7 @@ import { lineConfig } from "../auth/line";
 import { hash } from "../auth/crypto";
 import { postgresTripStore, TripError, type TripStore } from "./store";
 export type TripDependencies = {
-  store: (url: string) => TripStore;
+  store: (url: string, enforce?: boolean, key?: string) => TripStore;
   authStore: (url: string) => AuthStore;
   now: () => Date;
 };
@@ -78,7 +79,11 @@ export function tripRoutes(overrides: Partial<TripDependencies> = {}) {
     return c.json(
       tripListSchema.parse(
         await deps
-          .store(databaseUrl(c.env))
+          .store(
+            databaseUrl(c.env),
+            c.env.ENVIRONMENT === "production",
+            c.env.MEMBER_DATA_KEY,
+          )
           .list(c.get("session").user.id, cursor),
       ),
     );
@@ -99,7 +104,11 @@ export function tripRoutes(overrides: Partial<TripDependencies> = {}) {
         400,
       );
     const result = await deps
-      .store(databaseUrl(c.env))
+      .store(
+        databaseUrl(c.env),
+        c.env.ENVIRONMENT === "production",
+        c.env.MEMBER_DATA_KEY,
+      )
       .create(c.get("session").user.id, parsed.data, deps.now());
     return c.json(
       tripResponseSchema.parse({ trip: result.trip }),
@@ -112,7 +121,11 @@ export function tripRoutes(overrides: Partial<TripDependencies> = {}) {
     if (!id.success || !input.success)
       return c.json({ error: "invalid_trip" }, 400);
     const trip = await deps
-      .store(databaseUrl(c.env))
+      .store(
+        databaseUrl(c.env),
+        c.env.ENVIRONMENT === "production",
+        c.env.MEMBER_DATA_KEY,
+      )
       .update(c.get("session").user.id, id.data, input.data, deps.now());
     return c.json(tripResponseSchema.parse({ trip }));
   });
@@ -122,11 +135,17 @@ export function tripRoutes(overrides: Partial<TripDependencies> = {}) {
     if (!id.success || !input.success)
       return c.json({ error: "invalid_trip" }, 400);
     const trip = await deps
-      .store(databaseUrl(c.env))
+      .store(
+        databaseUrl(c.env),
+        c.env.ENVIRONMENT === "production",
+        c.env.MEMBER_DATA_KEY,
+      )
       .cancel(c.get("session").user.id, id.data, input.data, deps.now());
     return c.json(tripResponseSchema.parse({ trip }));
   });
   app.onError((error, c) => {
+    if (error instanceof MembershipError)
+      return c.json({ error: error.message }, 403);
     if (error instanceof TripError) {
       const status =
         error.code === "trip_not_found"

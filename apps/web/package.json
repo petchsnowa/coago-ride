@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@coago/contracts": "workspace:*",
+    "leaflet": "1.9.4",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   }

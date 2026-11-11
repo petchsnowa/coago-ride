@@ -1,2 +1,2 @@
-export const currentMigrationCount = 10;
-export const currentAppTableCount = 10;
+export const currentMigrationCount = 11;
+export const currentAppTableCount = 13;

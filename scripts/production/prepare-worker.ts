@@ -33,7 +33,9 @@ async function main() {
     secret = required("LINE_CHANNEL_SECRET");
   mask(token);
   mask(secret);
-  mask(required("ROOT_ADMIN_LINE_SUBJECT"));
+  mask(required("ROOT_ADMIN_EMAIL"));
+  mask(required("MEMBER_DATA_KEY"));
+  if (process.env.ORS_API_KEY) mask(process.env.ORS_API_KEY);
   mask(required("COAGO_PRODUCTION_DATABASE_URL"));
   mask(settings.origin.password);
   async function cf<T>(path: string): Promise<T> {
@@ -189,6 +191,16 @@ async function main() {
           run_worker_first: ["/api", "/api/*", "/health", "/health/*"],
         },
         vars: settings.vars,
+        ...(process.env.COAGO_PRIVATE_DOCUMENTS_BUCKET
+          ? {
+              r2_buckets: [
+                {
+                  binding: "PRIVATE_DOCUMENTS",
+                  bucket_name: process.env.COAGO_PRIVATE_DOCUMENTS_BUCKET,
+                },
+              ],
+            }
+          : {}),
         hyperdrive: [{ binding: "HYPERDRIVE", id: productionHyperdriveId }],
       }),
       { mode: 0o600 },
@@ -197,7 +209,11 @@ async function main() {
       secrets,
       JSON.stringify({
         LINE_CHANNEL_SECRET: secret,
-        ROOT_ADMIN_LINE_SUBJECT: required("ROOT_ADMIN_LINE_SUBJECT"),
+        ROOT_ADMIN_EMAIL: required("ROOT_ADMIN_EMAIL"),
+        MEMBER_DATA_KEY: required("MEMBER_DATA_KEY"),
+        ...(process.env.ORS_API_KEY
+          ? { ORS_API_KEY: process.env.ORS_API_KEY }
+          : {}),
       }),
       {
         mode: 0o600,

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import TravelSetup from "./TravelSetup";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   provinces,
   tripDraftSchema,
@@ -10,6 +11,7 @@ import {
   satangToBaht,
   type AuthState,
   type Trip,
+  type TripDraft,
 } from "@coago/contracts";
 type Form = {
   originProvince: string;
@@ -50,6 +52,11 @@ const messages: Record<string, string> = {
   request_reused:
     "คำขอนี้เคยบันทึกแล้ว กรุณาโหลดรายการเพื่อตรวจสอบก่อนสร้างประกาศใหม่",
   invalid_trip: "กรุณาตรวจข้อมูลเที่ยวให้ครบและถูกต้อง",
+  shares_below_offered_seats: "จำนวนส่วนที่หารต้องไม่น้อยกว่าที่นั่งที่เปิดรับ",
+  road_quote_expired:
+    "ผลคำนวณถนนหมดอายุหรือเปลี่ยนแล้ว กรุณาคำนวณระยะทางตามถนนใหม่",
+  member_verification_required: "กรุณาส่งข้อมูลสมาชิกและรออนุมัติก่อนใช้งาน",
+  vehicle_verification_required: "รถต้องผ่านการตรวจอนุมัติก่อนประกาศเที่ยว",
   service_unavailable: "ระบบยังไม่พร้อม กรุณาลองอีกครั้ง",
 };
 class ApiError extends Error {
@@ -94,6 +101,27 @@ function OwnedTrips({
   csrfToken: string;
   revision: number;
 }) {
+  const safetyEnabled =
+    import.meta.env.VITE_APP_MODE === "production" ||
+    import.meta.env.VITE_MEMBER_SAFETY === "true";
+  const [safety, setSafety] = useState<TripDraft["safety"]>();
+  const safetyChanged = useCallback(
+    (
+      next: TripDraft["safety"],
+      vehicle?: { brand: string; model: string; color: string },
+      price?: number,
+    ) => {
+      setSafety(next);
+      if (vehicle && price !== undefined)
+        setForm((f) => ({
+          ...f,
+          vehicleModel: `${vehicle.brand} ${vehicle.model}`,
+          vehicleColor: vehicle.color,
+          contribution: satangToBaht(price),
+        }));
+    },
+    [],
+  );
   const [form, setForm] = useState<Form>(blank),
     [editing, setEditing] = useState<Trip | null>(null),
     [requestId, setRequestId] = useState(() => crypto.randomUUID());
@@ -188,6 +216,7 @@ function OwnedTrips({
     setNotice("");
   }
   function reset() {
+    setSafety(undefined);
     setForm(blank());
     setEditing(null);
     setRequestId(crypto.randomUUID());
@@ -205,6 +234,7 @@ function OwnedTrips({
     }
     setEditing(trip);
     setCancelling(null);
+    setSafety(trip.safety);
     setForm({
       originProvince: trip.originProvince,
       destinationProvince: trip.destinationProvince,
@@ -240,7 +270,12 @@ function OwnedTrips({
     setError("");
     setNotice("");
     setErrorCode("");
+    if (safetyEnabled && !safety) {
+      setError("กรุณาใช้รถที่อนุมัติแล้ว พร้อมระยะทางและจำนวนส่วนที่หาร");
+      return;
+    }
     const parsed = tripDraftSchema.safeParse({
+      ...(safety ? { safety } : {}),
       originProvince: form.originProvince,
       destinationProvince: form.destinationProvince,
       departureAt: fromBangkokInput(form.departureLocal),
@@ -363,6 +398,10 @@ function OwnedTrips({
           value={form[key]}
           onChange={(e) => field(key, e.target.value)}
           {...options}
+          readOnly={
+            safetyEnabled &&
+            ["vehicleModel", "vehicleColor", "contribution"].includes(key)
+          }
           aria-invalid={!!fields[key]}
           aria-describedby={fields[key] ? `trip-${key}-error` : undefined}
         />
@@ -422,6 +461,15 @@ function OwnedTrips({
         <h3 id="trip-form-title">
           {editing ? "แก้ไขเที่ยวเดินทาง" : "ประกาศเที่ยวใหม่"}
         </h3>
+        {safetyEnabled && (
+          <TravelSetup
+            key={editing?.id ?? requestId}
+            csrf={csrfToken}
+            offeredSeats={Number(form.seats)}
+            initial={editing?.safety}
+            onChange={safetyChanged}
+          />
+        )}
         <fieldset disabled={busy}>
           <legend>เส้นทางและเวลา</legend>
           <div className="trip-grid">

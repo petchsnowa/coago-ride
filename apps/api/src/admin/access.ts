@@ -3,6 +3,10 @@ import { withDatabase, siteSettings } from "@coago/db";
 import { siteSettingsSchema, type SiteSettings } from "@coago/contracts";
 import type { Bindings } from "../bindings";
 export function rootSubject(env: Bindings) {
+  if (env.NEON_ADMIN_AUTH_URL)
+    return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(env.ROOT_ADMIN_EMAIL ?? "")
+      ? `email:${env.ROOT_ADMIN_EMAIL!.trim().toLowerCase()}`
+      : undefined;
   return /^U[a-f\d]{32}$/.test(env.ROOT_ADMIN_LINE_SUBJECT ?? "")
     ? env.ROOT_ADMIN_LINE_SUBJECT
     : undefined;
@@ -30,7 +34,7 @@ export async function isRoot(url: string, actor: string, subject?: string) {
     async (db) =>
       (
         await db.execute(
-          sql`SELECT 1 FROM users u JOIN external_identities i ON i.user_id=u.id WHERE u.id=${actor} AND u.status='active' AND i.provider='line' AND i.subject=${subject}`,
+          sql`SELECT 1 FROM users u JOIN external_identities i ON i.user_id=u.id WHERE u.id=${actor} AND u.status='active' AND i.provider=${subject.startsWith("email:") ? "admin_email" : "line"} AND i.subject=${subject.replace(/^email:/, "")}`,
         )
       ).rowCount === 1,
   );
@@ -42,7 +46,7 @@ export async function isAdmin(url: string, actor: string) {
     async (db) =>
       (
         await db.execute(
-          sql`SELECT 1 FROM users u WHERE u.id=${actor} AND u.status='active' AND u.role='admin' AND EXISTS(SELECT 1 FROM external_identities i WHERE i.user_id=u.id AND i.provider='line')`,
+          sql`SELECT 1 FROM users u WHERE u.id=${actor} AND u.status='active' AND u.role='admin' AND EXISTS(SELECT 1 FROM external_identities i WHERE i.user_id=u.id AND i.provider IN ('line','admin_email'))`,
         )
       ).rowCount === 1,
   );

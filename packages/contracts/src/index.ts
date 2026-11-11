@@ -32,3 +32,5 @@ export * from "./trips";
 export * from "./discovery";
 export * from "./ride-requests";
 export * from "./admin";
+export * from "./membership";
+export * from "./travel-cost";

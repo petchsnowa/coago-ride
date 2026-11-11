@@ -18,7 +18,7 @@ export type Flow = {
   verifier: string;
   expiresAt: Date;
 };
-export type Session = { user: User; csrfToken: string; rootVerified?: boolean };
+export type Session = { user: User; csrfToken: string; rootVerified?: boolean;adminProof?:string };
 export interface AuthStore {
   allowStart(key: string, now: Date): Promise<boolean>;
   saveFlow(flow: Flow): Promise<void>;
@@ -178,6 +178,7 @@ export function postgresAuthStore(url: string): AuthStore {
             displayName: users.displayName,
             csrfToken: authSessions.csrfToken,
             rootVerified: authSessions.rootVerified,
+            adminProof: authSessions.adminProof,
           })
           .from(authSessions)
           .innerJoin(users, eq(authSessions.userId, users.id))
@@ -193,6 +194,7 @@ export function postgresAuthStore(url: string): AuthStore {
               user: { id: rows[0].id, displayName: rows[0].displayName },
               csrfToken: rows[0].csrfToken,
               ...(rows[0].rootVerified ? { rootVerified: true } : {}),
+              ...(rows[0].adminProof?{adminProof:rows[0].adminProof}:{}),
             }
           : undefined;
       });

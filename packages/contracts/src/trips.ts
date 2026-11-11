@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { safetyTripSchema } from "./travel-cost";
 export const provinces = [
   "กรุงเทพมหานคร",
   "กระบี่",
@@ -85,6 +86,7 @@ const short = (name: string, max: number) =>
     .min(1, `กรุณากรอก${name}`)
     .max(max, `${name}ยาวเกิน ${max} ตัวอักษร`);
 const fields = {
+  safety: safetyTripSchema.optional(),
   originProvince: z.enum(provinces, { error: "กรุณาเลือกจังหวัดต้นทาง" }),
   destinationProvince: z.enum(provinces, { error: "กรุณาเลือกจังหวัดปลายทาง" }),
   departureAt: z

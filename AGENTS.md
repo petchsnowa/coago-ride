@@ -201,3 +201,7 @@ Phase 1 รวมเข้า main แล้ว งานรอบ LINE Login �
 ## แยก Root และ Admin
 
 เจ้าของขอ Root แต่งตั้ง/ถอนสิทธิ์และจัดการ Admin ได้ทั้งหมด เพิ่มบทบาท admin ของสมาชิก LINE ที่ตรวจแล้ว ส่วน Root ยังเป็น secret allowlist ไม่ใช่ role ที่ตั้งผ่าน API. Admin ดูแลผู้ใช้ทั่วไป/เที่ยว/คำขอ/audit แต่จัดการRoot/แอดมินด้วยกัน/ตั้งrole/เปิดปิดบริการไม่ได้. ทุก role/status mutation ใช้version+reason+audit+sessionrevocation และตรวจ backend. เตรียม migrationใหม่/PR ไม่deployหรือmigrate production อัตโนมัติ.
+
+## สมาชิก/รถ/แผนที่ และ staff email
+
+เจ้าของยืนยันmanualapprovalก่อนใช้งานและราคาคงที่ตามจำนวนส่วนที่กำหนด เพิ่มprofile/evidence/vehicles/privateencryptedR2, mapจุดรับส่ง+road/manualdistance+costsnapshot. Root/Adminต้องใช้email+password+verifiedemail ไม่ใช่LINE สมาชิกLINEแยกcookie. ROOT_ADMIN_EMAILเจ้าของตั้งSecretเอง ยังไม่ได้เปิดR2. ทำตามdocs/member-safety-and-maps.mdและadmin-email-auth.md ไม่สร้างบัญชี/ผูกบัตร/ส่งอีเมล/deploy/migrate/DNS productionอัตโนมัติ. ห้ามใช้เอกสารจริงในtests.
