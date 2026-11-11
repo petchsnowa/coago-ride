@@ -1,3 +1,5 @@
+import { lazy, Suspense } from "react";
+const RouteMap = lazy(() => import("./RouteMap"));
 import RideRequestAction from "./RideRequestAction";
 import TripSummaryCard from "./TripSummaryCard";
 import { useEffect, useRef, useState } from "react";
@@ -446,6 +448,36 @@ export default function SearchTrips({
               {detail.originProvince} → {detail.destinationProvince}
             </h3>
             <p>{time(detail.departureAt)} น. (เวลาไทย)</p>
+            {detail.route && (
+              <>
+                <Suspense fallback={<p>กำลังโหลดแผนที่…</p>}>
+                  <RouteMap
+                    origin={detail.route.origin}
+                    destination={detail.route.destination}
+                  />
+                </Suspense>
+                <p>
+                  {detail.route.source === "road"
+                    ? "ระยะทางตามถนน"
+                    : "ระยะทางที่เจ้าของกรอก"}{" "}
+                  {detail.route.distanceKm.toFixed(2)} กม. · หาร{" "}
+                  {detail.route.shares} ส่วน ราคาต่อคนคงที่แม้ร่วมทางไม่เต็ม
+                </p>
+              </>
+            )}
+            {detail.route && account?.user && (
+              <figure>
+                <img
+                  className="private-preview"
+                  src={`/api/membership/trip-photo/${detail.id}`}
+                  alt="รูปถ่ายรถที่ผ่านการตรวจ"
+                  onError={(e) => {
+                    e.currentTarget.hidden = true;
+                  }}
+                />
+                <figcaption>รูปถ่ายรถสำหรับสมาชิกที่ผ่านการตรวจ</figcaption>
+              </figure>
+            )}
             <dl className="trip-details">
               <div>
                 <dt>จุดรับ</dt>

@@ -1,3 +1,4 @@
+import MemberStatus from "./MemberStatus";
 import RideRequestsPanel from "./RideRequestsPanel";
 import { lazy, Suspense, useCallback } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -5,10 +6,19 @@ import { readySchema, type AuthState } from "@coago/contracts";
 import AuthPanel from "./AuthPanel";
 import TripsPanel from "./TripsPanel";
 import SearchTrips from "./SearchTrips";
+const MemberAccount = lazy(() => import("./MemberAccount"));
 const AdminPage = lazy(() => import("./AdminPage"));
 import { siteSettingsSchema, type SiteSettings } from "@coago/contracts";
 export default function App() {
+  if (window.location.pathname === "/account")
+    return (
+      <Suspense fallback={<main>กำลังโหลดข้อมูลสมาชิก…</main>}>
+        <MemberAccount />
+      </Suspense>
+    );
   if (
+    window.location.pathname === "/root" ||
+    window.location.pathname.startsWith("/root/") ||
     window.location.pathname === "/admin" ||
     window.location.pathname.startsWith("/admin/")
   ) {
@@ -94,6 +104,7 @@ function UserPage() {
         <div className="header-links">
           <a href="#search-form">ค้นหาเที่ยว</a>
           <a href="#trips-title">เที่ยวของฉัน</a>
+          <a href="/account">ข้อมูลสมาชิกและรถ</a>
           <span className="badge">
             {production ? "ร่วมเดินทาง" : "เว็บทดสอบ"}
           </span>
@@ -118,6 +129,7 @@ function UserPage() {
         serviceOpen={site?.serviceOpen ?? false}
         registrationsOpen={site?.registrationsOpen ?? false}
       />
+      {adminEnabled && account?.user && <MemberStatus key={account.user.id} />}
       {site?.serviceOpen && (
         <>
           <RideRequestsPanel

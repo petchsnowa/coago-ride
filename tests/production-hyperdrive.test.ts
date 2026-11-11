@@ -98,13 +98,13 @@ it("returns only metadata/spatial proof using read-only schema queries", async (
     if (sql.includes("transaction_read_only"))
       return {
         rows: [
-          { readonly: "on", pg: "18.6", postgis: "3.6.4", app_tables: 10 },
+          { readonly: "on", pg: "18.6", postgis: "3.6.4", app_tables: 13 },
         ],
       };
     if (sql.includes("to_regclass"))
       return { rows: [{ table_name: "drizzle.__drizzle_migrations" }] };
     if (sql.includes("count(*)::int AS count"))
-      return { rows: [{ count: 10 }] };
+      return { rows: [{ count: 11 }] };
     if (sql.includes("ST_AsText"))
       return { rows: [{ point: "POINT(100.5018 13.7563)", srid: 4326 }] };
     return { rows: [] };
@@ -117,8 +117,8 @@ it("returns only metadata/spatial proof using read-only schema queries", async (
     transport: "hyperdrive",
     postgres: "18.6",
     postgis: "3.6.4",
-    appTables: 10,
-    migrations: 10,
+    appTables: 13,
+    migrations: 11,
     point: "POINT(100.5018 13.7563)",
     srid: 4326,
   });

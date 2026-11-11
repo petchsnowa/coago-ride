@@ -1,3 +1,4 @@
+import { pointSchema } from "./travel-cost";
 import { z } from "zod";
 import { provinces, tripSchema, fromBangkokInput } from "./trips";
 export const travelDateSchema = z
@@ -38,6 +39,15 @@ export const publicTripDetailSchema = publicTripSummarySchema
     dropoffPoint: tripSchema.shape.dropoffPoint,
     luggageNotes: tripSchema.shape.luggageNotes,
     conditions: tripSchema.shape.conditions,
+    route: z
+      .object({
+        origin: pointSchema,
+        destination: pointSchema,
+        distanceKm: z.number().positive(),
+        source: z.enum(["road", "manual"]),
+        shares: z.number().int().positive(),
+      })
+      .optional(),
   })
   .strict();
 export const discoveryCursorSchema = z

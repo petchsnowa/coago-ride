@@ -151,3 +151,9 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 ขอบเขตบัญชีเจ้าของ LINE, การจัดการผู้ใช้/เที่ยว/คำขอ, service/registration switches, audit, ขั้นอัปเกรดและ Free hosting อยู่ใน [docs/root-admin.md](docs/root-admin.md). เพิ่ม Environment secret `ROOT_ADMIN_LINE_SUBJECT` ใน `production`; ไม่ใช่ Channel ID และไม่ส่งค่าให้ frontend. การเปิดบริการต้องผ่าน manual acceptance ก่อน ไม่เปิดด้วยการ merge.
 
 ตรวจแยกด้วย `pnpm test:admin:integration` (ฐาน disposable + local Workers runtime) และ `pnpm test:admin:upgrade` (baseline7→9, rollback/idempotency). Browser fixture `apps/web/tests/admin.html` ใช้เฉพาะ Vite dev/Playwright ไม่ใช่ build entry และไม่อยู่ใน production dist.
+
+## สมาชิกปลอดภัย แผนที่ และ staff email
+
+ขอบเขตใหม่: [สมาชิก/รถ/แผนที่/ราคาคงที่](docs/member-safety-and-maps.md), [Root/Admin email-password](docs/admin-email-auth.md). `/account` สำหรับข้อมูลสมาชิก LINE, `/admin` สำหรับ staff, `/root` เฉพาะRoot. ข้อมูลต้องอนุมัติก่อนประกาศ/ส่ง/ตอบรับคำขอใหม่; cancel/refundเดิมยังได้
+
+`pnpm test:members:integration` ใช้disposablePostgres, mockedNeon และlocalWorkers/R2 ไม่ส่งอีเมลหรือใช้เอกสารจริง. Migration0010รวม11migrations/13appTables. ห้ามใช้legacybootstrap0000–0006กับschemaปัจจุบัน; ใช้guardedupgradeworkflowตามrunbook. ไม่เปิดบริการ/paid planจากmerge

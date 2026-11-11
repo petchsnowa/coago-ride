@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="th">
+  <meta charset="UTF-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Travel test fixture</title>
+  <div id="root"></div>
+  <script type="module">
+    import React, { useState, useCallback } from "react";
+    import { createRoot } from "react-dom/client";
+    import TravelSetup from "../src/TravelSetup.tsx";
+    import "../src/style.css";
+    function Demo() {
+      const [result, setResult] = useState(null);
+      const change = useCallback(
+        (s, v, p) => setResult(s ? { s, v, p } : null),
+        [],
+      );
+      return React.createElement(
+        "main",
+        null,
+        React.createElement(TravelSetup, {
+          csrf: "a".repeat(64),
+          onChange: change,
+        }),
+        React.createElement(
+          "output",
+          { "aria-label": "ผลคำนวณ" },
+          result ? String(result.p) : "ยังไม่ครบ",
+        ),
+      );
+    }
+    createRoot(document.getElementById("root")).render(
+      React.createElement(Demo),
+    );
+  </script>
+</html>

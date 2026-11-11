@@ -44,8 +44,10 @@ export interface TripStore {
     now: Date,
   ): Promise<Trip>;
 }
+import { approvedTrip } from "../membership/eligibility";
 export function draftValues(input: TripDraft) {
   return {
+    ...(input.safety ? { safety: input.safety } : {}),
     originProvince: input.originProvince,
     destinationProvince: input.destinationProvince,
     departureAt: new Date(input.departureAt),
@@ -61,6 +63,7 @@ export function draftValues(input: TripDraft) {
 }
 function dto(row: typeof trips.$inferSelect): Trip {
   return tripSchema.parse({
+    ...(row.safety ? { safety: row.safety } : {}),
     id: row.id,
     originProvince: row.originProvince,
     destinationProvince: row.destinationProvince,
@@ -94,7 +97,11 @@ function checkEditable(
 function ownerTrip(owner: string, id: string) {
   return and(eq(trips.id, id), eq(trips.ownerId, owner));
 }
-export function postgresTripStore(url: string): TripStore {
+export function postgresTripStore(
+  url: string,
+  enforceSafety = false,
+  key?: string,
+): TripStore {
   return {
     async list(owner, cursor) {
       return withDatabase(url, async (db) => {
@@ -135,6 +142,7 @@ export function postgresTripStore(url: string): TripStore {
         fingerprint = await hash(JSON.stringify(values));
       return withDatabase(url, async (db) =>
         db.transaction(async (tx) => {
+          if (enforceSafety) await approvedTrip(tx, owner, input, key);
           const existing = await tx
             .select()
             .from(trips)
@@ -185,31 +193,35 @@ export function postgresTripStore(url: string): TripStore {
     async update(owner, id, input, now) {
       if (new Date(input.departureAt) <= now)
         throw new TripError("departure_in_past");
-      return withDatabase(url, async (db) => {
-        const rows = await db
-          .update(trips)
-          .set({
-            ...draftValues(input),
-            version: sql`${trips.version}+1`,
-            updatedAt: now,
-          })
-          .where(
-            and(
-              ownerTrip(owner, id),
-              eq(trips.version, input.version),
-              eq(trips.status, "active"),
-              eq(trips.bookedSeats, 0),
-              gt(trips.departureAt, now),
-            ),
-          )
-          .returning();
-        if (rows[0]) return dto(rows[0]);
-        const [existing] = await db
-          .select()
-          .from(trips)
-          .where(ownerTrip(owner, id));
-        return checkEditable(existing, now);
-      });
+      return withDatabase(url, (db) =>
+        db.transaction(async (tx) => {
+          if (enforceSafety) await approvedTrip(tx, owner, input, key);
+          const db = tx;
+          const rows = await db
+            .update(trips)
+            .set({
+              ...draftValues(input),
+              version: sql`${trips.version}+1`,
+              updatedAt: now,
+            })
+            .where(
+              and(
+                ownerTrip(owner, id),
+                eq(trips.version, input.version),
+                eq(trips.status, "active"),
+                eq(trips.bookedSeats, 0),
+                gt(trips.departureAt, now),
+              ),
+            )
+            .returning();
+          if (rows[0]) return dto(rows[0]);
+          const [existing] = await db
+            .select()
+            .from(trips)
+            .where(ownerTrip(owner, id));
+          return checkEditable(existing, now);
+        }),
+      );
     },
     async cancel(owner, id, input, now) {
       return withDatabase(url, (db) =>

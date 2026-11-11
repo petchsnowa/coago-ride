@@ -21,7 +21,8 @@ export class RideRequestError extends Error {
       | "request_reused"
       | "request_not_pending"
       | "trip_changed"
-      | "cancellation_closed",
+      | "cancellation_closed"
+      | "member_verification_required",
   ) {
     super(code);
   }
@@ -161,7 +162,27 @@ async function transaction<T>(url: string, work: (c: pg.Client) => Promise<T>) {
     }
   });
 }
-export function postgresRideRequestStore(url: string): RideRequestStore {
+async function safetyForRequest(
+  client: pg.Client,
+  tripId: string,
+  passenger: string,
+) {
+  const p = await client.query(
+    "SELECT status FROM member_profiles WHERE user_id=$1 FOR SHARE",
+    [passenger],
+  );
+  if (p.rows[0]?.status !== "approved")
+    throw new RideRequestError("member_verification_required");
+  const driver = await client.query(
+    "SELECT 1 FROM member_profiles p JOIN trips t ON t.owner_id=p.user_id JOIN vehicles v ON v.id=(t.safety->>'vehicleId')::uuid WHERE t.id=$1 AND p.status='approved' AND v.status='approved' AND v.owner_id=t.owner_id AND v.version=(t.safety->>'vehicleVersion')::int FOR SHARE OF p,v",
+    [tripId],
+  );
+  if (!driver.rowCount) throw new RideRequestError("trip_unavailable");
+}
+export function postgresRideRequestStore(
+  url: string,
+  enforceSafety = false,
+): RideRequestStore {
   return {
     async create(actor, input, now) {
       return transaction(url, async (client) => {
@@ -181,6 +202,7 @@ export function postgresRideRequestStore(url: string): RideRequestStore {
         const trip = locked.rows[0];
         if (!trip) throw new RideRequestError("trip_not_found");
         if (trip.owner_id === actor) throw new RideRequestError("own_trip");
+        if (enforceSafety) await safetyForRequest(client, trip.id, actor);
         // Recheck after obtaining the trip lock: another call with this key may have committed.
         const same = await client.query<Row>(
           `${select} WHERE r.passenger_id=$1 AND r.request_id=$2`,
@@ -283,6 +305,8 @@ export function postgresRideRequestStore(url: string): RideRequestStore {
         if (row.status !== "pending")
           throw new RideRequestError("request_not_pending");
         if (input.decision === "accept") {
+          if (enforceSafety)
+            await safetyForRequest(client, trip.id, row.passenger_id);
           if (!available(trip, now))
             throw new RideRequestError("trip_unavailable");
           if (row.trip_version !== trip.version)

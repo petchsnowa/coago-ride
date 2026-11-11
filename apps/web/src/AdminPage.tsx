@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import type { AuthState } from "@coago/contracts";
-import AuthPanel from "./AuthPanel";
+import AdminLogin from "./AdminLogin";
+import MemberReview from "./MemberReview";
 import AdminPanel from "./AdminPanel";
 export default function AdminPage() {
   const [account, setAccount] = useState<AuthState | null>(null);
@@ -20,15 +21,14 @@ export default function AdminPage() {
       </nav>
       <header>
         <p className="eyebrow">พื้นที่จัดการระบบ</p>
-        <h1>ผู้ดูแล COAGO</h1>
+        <h1>
+          {window.location.pathname === "/root"
+            ? "Root COAGO"
+            : "ผู้ดูแล COAGO"}
+        </h1>
         <p>สำหรับ Root และ Admin ที่ได้รับสิทธิ์</p>
       </header>
-      <AuthPanel
-        onAccountChange={accountChanged}
-        serviceOpen={false}
-        registrationsOpen={false}
-        adminMode
-      />
+      <AdminLogin onAccountChange={accountChanged} />
       {account?.user && role === null && (
         <p role="status">กำลังตรวจสิทธิ์ผู้ดูแล…</p>
       )}
@@ -39,6 +39,9 @@ export default function AdminPage() {
         </p>
       )}
       <AdminPanel account={account} onRole={roleChanged} onChange={() => {}} />
+      {role === true && account?.user && (
+        <MemberReview key={account.user.id} csrf={account.csrfToken} />
+      )}
     </main>
   );
 }

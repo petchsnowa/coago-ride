@@ -9,7 +9,7 @@ import {
 import { type Bindings, databaseUrl } from "../bindings";
 import { postgresDiscoveryStore, type DiscoveryStore } from "./store";
 export type DiscoveryDependencies = {
-  store: (url: string) => DiscoveryStore;
+  store: (url: string, enforce?: boolean) => DiscoveryStore;
   now: () => Date;
 };
 export function discoveryRoutes(
@@ -58,7 +58,7 @@ export function discoveryRoutes(
     return c.json(
       publicTripListSchema.parse(
         await deps
-          .store(databaseUrl(c.env))
+          .store(databaseUrl(c.env), c.env.ENVIRONMENT === "production")
           .search(input.data, deps.now(), cursor),
       ),
     );
@@ -68,7 +68,9 @@ export function discoveryRoutes(
       return c.json({ error: "invalid_search" }, 400);
     return c.json(
       publicTripListSchema.parse(
-        await deps.store(databaseUrl(c.env)).upcoming(deps.now()),
+        await deps
+          .store(databaseUrl(c.env), c.env.ENVIRONMENT === "production")
+          .upcoming(deps.now()),
       ),
     );
   });
@@ -76,7 +78,7 @@ export function discoveryRoutes(
     const id = z.string().uuid().safeParse(c.req.param("id"));
     if (!id.success) return c.json({ error: "invalid_trip_id" }, 400);
     const trip = await deps
-      .store(databaseUrl(c.env))
+      .store(databaseUrl(c.env), c.env.ENVIRONMENT === "production")
       .detail(id.data, deps.now());
     return trip
       ? c.json(publicTripResponseSchema.parse({ trip }))

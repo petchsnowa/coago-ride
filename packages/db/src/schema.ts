@@ -78,7 +78,7 @@ export const adminAudit = pgTable(
     check("admin_audit_reason", sql`length(${t.reason})<=300`),
     check(
       "admin_audit_action",
-      sql`${t.action} in ('root_bootstrap','user_suspended','user_activated','trip_cancelled','settings_changed','admin_granted','admin_revoked')`,
+      sql`${t.action} in ('root_bootstrap','user_suspended','user_activated','trip_cancelled','settings_changed','admin_granted','admin_revoked','profile_reviewed','vehicle_reviewed','private_document_viewed')`,
     ),
     check(
       "admin_audit_target",
@@ -120,6 +120,7 @@ export const authSessions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     csrfToken: text("csrf_token").notNull(),
+    adminProof: text("admin_proof"),
     rootVerified: boolean("root_verified").notNull().default(false),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -154,6 +155,7 @@ export const trips = pgTable(
     dropoffPoint: text("dropoff_point").notNull(),
     seats: integer("seats_offered").notNull(),
     bookedSeats: integer("seats_booked").notNull().default(0),
+    safety: jsonb("safety").$type<Record<string, unknown>>(),
     vehicleModel: text("vehicle_model").notNull(),
     vehicleColor: text("vehicle_color").notNull(),
     contributionSatang: integer("contribution_satang").notNull(),
@@ -252,5 +254,82 @@ export const rideRequests = pgTable(
     ),
     check("ride_requests_single_seat", sql`${t.seatsRequested}=1`),
     check("ride_requests_trip_version", sql`${t.tripVersion}>0`),
+  ],
+);
+
+export const memberProfiles = pgTable(
+  "member_profiles",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id),
+    data: text("data").notNull(),
+    documentLast4: text("document_last4").notNull(),
+    status: text("status").notNull().default("pending"),
+    version: integer("version").notNull().default(1),
+    reviewReason: text("review_reason"),
+    reviewedBy: uuid("reviewed_by").references(() => users.id),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    check(
+      "member_profile_status",
+      sql`${t.status} in ('pending','approved','rejected')`,
+    ),
+    check("member_profile_version", sql`${t.version}>0`),
+  ],
+);
+export const privateUploads = pgTable(
+  "private_uploads",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id),
+    purpose: text("purpose").notNull(),
+    objectKey: text("object_key").notNull().unique(),
+    contentType: text("content_type").notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    check(
+      "upload_purpose",
+      sql`${t.purpose} in ('portrait','document','vehicle','plate')`,
+    ),
+    check("upload_size", sql`${t.size}>0 and ${t.size}<=2097152`),
+  ],
+);
+export const vehicles = pgTable(
+  "vehicles",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id),
+    brand: text("brand").notNull(),
+    model: text("model").notNull(),
+    color: text("color").notNull(),
+    capacity: integer("capacity").notNull().default(1),
+    data: text("data").notNull(),
+    status: text("status").notNull().default("pending"),
+    version: integer("version").notNull().default(1),
+    reviewReason: text("review_reason"),
+    reviewedBy: uuid("reviewed_by").references(() => users.id),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("vehicles_owner_idx").on(t.ownerId),
+    check(
+      "vehicle_status",
+      sql`${t.status} in ('pending','approved','rejected')`,
+    ),
+    check("vehicle_version", sql`${t.version}>0`),
   ],
 );

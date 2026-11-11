@@ -1,7 +1,11 @@
+import { adminCookie, managedAdminSession } from "../admin-auth/session";
 import { Hono } from "hono";
 import { getCookie } from "hono/cookie";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
+import { withDatabase, users, externalIdentities, adminAudit } from "@coago/db";
+import { eq, and, sql } from "drizzle-orm";
+import { assertManager } from "./store";
 import {
   adminUserActionSchema,
   adminGrantSchema,
@@ -42,12 +46,14 @@ export function adminRoutes(overrides: Partial<AdminDependencies> = {}) {
   }>();
   app.use("*", async (c, next) => {
     c.header("Cache-Control", "no-store");
-    const token = getCookie(c, "__Host-coago_session");
+    const token = getCookie(c, adminCookie(c.env));
     if (!token || !/^[a-f\d]{64}$/.test(token))
       return c.json({ error: "unauthorized" }, 401);
-    const session = await deps
-      .authStore(databaseUrl(c.env))
-      .getSession(await hash(token), deps.now());
+    const session = c.env.NEON_ADMIN_AUTH_URL
+      ? await managedAdminSession(c.env, token)
+      : await deps
+          .authStore(databaseUrl(c.env))
+          .getSession(await hash(token), deps.now());
     if (!session) return c.json({ error: "unauthorized" }, 401);
     c.set("session", session);
     const root =
@@ -63,7 +69,7 @@ export function adminRoutes(overrides: Partial<AdminDependencies> = {}) {
     if (["/me", "/api/admin/me"].includes(c.req.path) && c.req.method === "GET")
       return c.json({ role: root ? "root" : admin ? "admin" : "user" });
     if (!root && !admin) return c.json({ error: "forbidden" }, 403);
-    if (!root && /\/(?:settings|role)$/.test(c.req.path))
+    if (!root && /\/(?:settings|role|accounts)$/.test(c.req.path))
       return c.json({ error: "forbidden" }, 403);
     if (!["GET", "HEAD"].includes(c.req.method)) {
       if (
@@ -90,6 +96,85 @@ export function adminRoutes(overrides: Partial<AdminDependencies> = {}) {
     c.get("session").user.id;
   const store = (env: Bindings) =>
     deps.store(databaseUrl(env), rootSubject(env));
+  app.get("/accounts", async (c) =>
+    withDatabase(databaseUrl(c.env), async (db) =>
+      db.transaction(async (tx) => {
+        await assertManager(tx, actor(c), rootSubject(c.env), true);
+        const items = await tx
+          .select({
+            id: users.id,
+            displayName: users.displayName,
+            status: users.status,
+            role: users.role,
+            email: externalIdentities.subject,
+          })
+          .from(users)
+          .innerJoin(
+            externalIdentities,
+            eq(users.id, externalIdentities.userId),
+          )
+          .where(eq(externalIdentities.provider, "admin_email"))
+          .limit(100);
+        return c.json({ items });
+      }),
+    ),
+  );
+  app.post("/accounts", async (c) => {
+    const input = z
+      .object({
+        email: z.email().transform((v) => v.toLowerCase()),
+        name: z.string().trim().min(1).max(120),
+        reason: z.string().trim().min(1).max(300),
+      })
+      .strict()
+      .safeParse(await c.req.json().catch(() => null));
+    if (!input.success) return c.json({ error: "invalid_request" }, 400);
+    if (!c.env.NEON_ADMIN_AUTH_URL)
+      return c.json({ error: "admin_auth_not_configured" }, 503);
+    if (input.data.email === (c.env.ROOT_ADMIN_EMAIL ?? "").toLowerCase())
+      return c.json({ error: "root_protected" }, 409);
+    return withDatabase(databaseUrl(c.env), async (db) =>
+      db.transaction(async (tx) => {
+        await assertManager(tx, actor(c), rootSubject(c.env), true);
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtextextended(${"staff-login:" + input.data.email},0))`,
+        );
+        const [existing] = await tx
+          .select()
+          .from(externalIdentities)
+          .where(
+            and(
+              eq(externalIdentities.provider, "admin_email"),
+              eq(externalIdentities.subject, input.data.email),
+            ),
+          );
+        if (existing) return c.json({ error: "conflict" }, 409);
+        const id = crypto.randomUUID();
+        await tx
+          .insert(users)
+          .values({ id, displayName: input.data.name, role: "admin" });
+        await tx
+          .insert(externalIdentities)
+          .values({
+            provider: "admin_email",
+            subject: input.data.email,
+            userId: id,
+          });
+        await tx
+          .insert(adminAudit)
+          .values({
+            id: crypto.randomUUID(),
+            actorId: actor(c),
+            action: "admin_granted",
+            targetType: "user",
+            targetId: id,
+            reason: input.data.reason,
+            details: { invited: true, after: "admin" },
+          });
+        return c.json({ id }, 201);
+      }),
+    );
+  });
   app.get("/overview", async (c) =>
     c.json(adminOverviewSchema.parse(await store(c.env).overview(actor(c)))),
   );

@@ -1,7 +1,9 @@
+import { adminAuthRoutes } from "./admin-auth/routes";
 import {
   rideRequestRoutes,
   type RideRequestDependencies,
 } from "./requests/routes";
+import { membershipRoutes } from "./membership/routes";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { checkDatabase } from "@coago/db";
@@ -44,7 +46,7 @@ export function createApp(
       c.header("X-COAGO-Release", c.env.RELEASE_COMMIT!);
     c.header(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://access.line.me",
+      "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data: https://tile.openstreetmap.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://access.line.me",
     );
     await next();
   });
@@ -75,7 +77,11 @@ export function createApp(
         !["GET", "HEAD"].includes(c.req.method)
       )
         return c.json({ error: "canonical_origin_required" }, 403);
-      if (/^\/api\/(?:trips|ride-requests|admin)(?:\/|$)/.test(c.req.path))
+      if (
+        /^\/api\/(?:trips|ride-requests|admin|membership)(?:\/|$)/.test(
+          c.req.path,
+        )
+      )
         return c.json({ error: "unauthorized" }, 401);
     }
     await next();
@@ -133,6 +139,8 @@ export function createApp(
       return c.json(readySchema.parse({ status: "unavailable" }), 503);
     }
   });
+  app.route("/api/membership", membershipRoutes());
+  app.route("/api/admin-auth", adminAuthRoutes());
   app.route("/api/auth", authRoutes(authDependencies));
   app.route(
     "/api/admin",

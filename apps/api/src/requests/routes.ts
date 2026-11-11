@@ -20,7 +20,7 @@ import {
   type RideRequestStore,
 } from "./store";
 export type RideRequestDependencies = {
-  store: (url: string) => RideRequestStore;
+  store: (url: string, enforce?: boolean) => RideRequestStore;
   authStore: (url: string) => AuthStore;
   now: () => Date;
 };
@@ -89,7 +89,7 @@ export function rideRequestRoutes(
       return c.json(
         rideRequestListSchema.parse(
           await deps
-            .store(databaseUrl(c.env))
+            .store(databaseUrl(c.env), c.env.ENVIRONMENT === "production")
             .list(c.get("session").user.id, kind, cursor),
         ),
       );
@@ -100,7 +100,7 @@ export function rideRequestRoutes(
     return c.json(
       rideRequestContextSchema.parse(
         await deps
-          .store(databaseUrl(c.env))
+          .store(databaseUrl(c.env), c.env.ENVIRONMENT === "production")
           .context(c.get("session").user.id, id.data, deps.now()),
       ),
     );
@@ -111,7 +111,7 @@ export function rideRequestRoutes(
     );
     if (!input.success) return c.json({ error: "invalid_request" }, 400);
     const result = await deps
-      .store(databaseUrl(c.env))
+      .store(databaseUrl(c.env), c.env.ENVIRONMENT === "production")
       .create(c.get("session").user.id, input.data, deps.now());
     return c.json(
       rideRequestResponseSchema.parse({ request: result.request }),
@@ -128,7 +128,7 @@ export function rideRequestRoutes(
     return c.json(
       rideRequestResponseSchema.parse({
         request: await deps
-          .store(databaseUrl(c.env))
+          .store(databaseUrl(c.env), c.env.ENVIRONMENT === "production")
           .decide(c.get("session").user.id, id.data, input.data, deps.now()),
       }),
     );
@@ -144,7 +144,7 @@ export function rideRequestRoutes(
     return c.json(
       rideRequestResponseSchema.parse({
         request: await deps
-          .store(databaseUrl(c.env))
+          .store(databaseUrl(c.env), c.env.ENVIRONMENT === "production")
           .cancel(c.get("session").user.id, id.data, deps.now()),
       }),
     );

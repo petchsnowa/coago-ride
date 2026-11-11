@@ -1,3 +1,4 @@
+import { adminProvider } from "../../apps/api/src/admin-auth/provider";
 import { bootstrapConfig } from "./bootstrap";
 export const productionWorker = "coago-production";
 export const productionOwner = "petchsnowa/coago-ride:production";
@@ -17,14 +18,35 @@ export function productionWorkerSettings(env: NodeJS.ProcessEnv) {
     throw new Error("PRODUCTION_LINE_CHANNEL_MISMATCH");
   if (!env.LINE_CHANNEL_SECRET)
     throw new Error("PRODUCTION_LINE_SECRET_MISSING");
-  if (!/^U[a-f\d]{32}$/.test(env.ROOT_ADMIN_LINE_SUBJECT ?? ""))
-    throw new Error("PRODUCTION_ROOT_SUBJECT_REQUIRED");
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(env.ROOT_ADMIN_EMAIL ?? ""))
+    throw new Error("PRODUCTION_ROOT_EMAIL_REQUIRED");
+  try {
+    adminProvider({
+      NEON_ADMIN_AUTH_URL: env.NEON_ADMIN_AUTH_URL,
+      ROOT_ADMIN_EMAIL: env.ROOT_ADMIN_EMAIL,
+    });
+  } catch {
+    throw new Error("PRODUCTION_ADMIN_AUTH_REQUIRED");
+  }
+  if (
+    !env.MEMBER_DATA_KEY ||
+    Buffer.from(env.MEMBER_DATA_KEY, "base64").length !== 32
+  )
+    throw new Error("PRODUCTION_PRIVATE_DATA_KEY_REQUIRED");
+  if (
+    env.COAGO_PRIVATE_DOCUMENTS_BUCKET &&
+    !/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(
+      env.COAGO_PRIVATE_DOCUMENTS_BUCKET ?? "",
+    )
+  )
+    throw new Error("PRODUCTION_PRIVATE_BUCKET_REQUIRED");
   if (!/^[a-f\d]{40}$/.test(env.GITHUB_SHA ?? ""))
     throw new Error("PRODUCTION_RELEASE_SHA_REQUIRED");
   return {
     origin,
     vars: {
       ENVIRONMENT: "production",
+      NEON_ADMIN_AUTH_URL: env.NEON_ADMIN_AUTH_URL,
       COAGO_PRODUCTION_OWNER: productionOwner,
       APP_ORIGIN: productionOrigin,
       LINE_CALLBACK_URL: `${productionOrigin}/api/auth/line/callback`,

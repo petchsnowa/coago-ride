@@ -11,20 +11,22 @@ test("dedicated admin page excludes passenger and driver tools", async ({
     const p = new URL(r.request().url()).pathname;
     await r.fulfill({
       json:
-        p === "/api/auth/me"
-          ? account
-          : p === "/api/admin/me"
-            ? { role: "root" }
-            : p === "/api/admin/overview"
-              ? {
-                  users: 1,
-                  suspended: 0,
-                  active_trips: 0,
-                  cancelled_trips: 0,
-                  pending_requests: 0,
-                  accepted_requests: 0,
-                }
-              : { items: [], nextCursor: null },
+        p === "/api/admin-auth/config"
+          ? { enabled: true }
+          : p === "/api/admin-auth/me"
+            ? account
+            : p === "/api/admin/me"
+              ? { role: "root" }
+              : p === "/api/admin/overview"
+                ? {
+                    users: 1,
+                    suspended: 0,
+                    active_trips: 0,
+                    cancelled_trips: 0,
+                    pending_requests: 0,
+                    accepted_requests: 0,
+                  }
+                : { items: [], nextCursor: null },
     });
   });
   await page.goto("/admin");
@@ -51,7 +53,7 @@ test("ordinary member receives no admin data", async ({ page }) => {
     const p = new URL(r.request().url()).pathname;
     if (p.startsWith("/api/admin/") && p !== "/api/admin/me") privateReads++;
     await r.fulfill({
-      json: p === "/api/auth/me" ? account : { role: "user" },
+      json: p === "/api/admin-auth/config" ? {enabled:true} : p === "/api/admin-auth/me" ? account : { role: "user" },
     });
   });
   await page.goto("/admin");
@@ -70,7 +72,8 @@ test("Root appoints admin and admin has no role/settings controls", async ({
   await page.route("**/api/**", async (r) => {
     const p = new URL(r.request().url()).pathname;
     let data: unknown = {};
-    if (p === "/api/auth/me") data = account;
+    if (p === "/api/admin-auth/config") data = { enabled: true };
+    else if (p === "/api/admin-auth/me") data = account;
     else if (p === "/api/admin/me") data = { role };
     else if (p === "/api/admin/overview")
       data = {
@@ -114,7 +117,9 @@ test("Root appoints admin and admin has no role/settings controls", async ({
     .click();
   const confirm = page.getByRole("button", { name: "ยืนยันและบันทึกประวัติ" });
   await expect(confirm).toBeDisabled();
-  await page.getByRole("textbox").fill("แต่งตั้งผู้ดูแล");
+  await page
+    .getByRole("textbox", { name: "เหตุผลการจัดการ (จำเป็น)" })
+    .fill("แต่งตั้งผู้ดูแล");
   await confirm.click();
   await expect(
     page.getByRole("button", { name: "ถอนสิทธิ์ Admin", exact: true }),

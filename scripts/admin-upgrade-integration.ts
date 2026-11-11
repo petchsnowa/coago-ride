@@ -68,8 +68,8 @@ try {
   );
   const result = await upgradeAdminSchema(client, { allowExistingData: true });
   assert.equal(result.status, "upgraded");
-  assert.equal(result.migrations, 10);
-  assert.equal(result.appTables, 10);
+  assert.equal(result.migrations, 11);
+  assert.equal(result.appTables, 13);
   assert.equal(result.settings.service_open, false);
   assert.equal(result.settings.registrations_open, false);
   assert.equal(
@@ -122,7 +122,7 @@ try {
     allowExistingData: true,
   });
   assert.equal(nineResult.status, "upgraded");
-  assert.equal(nineResult.migrations, 10);
+  assert.equal(nineResult.migrations, 11);
   assert.equal(nineResult.settings.service_open, true);
   assert.equal(nineResult.settings.version, 4);
   assert.equal(

@@ -48,7 +48,7 @@ export interface AdminStore {
     now: Date,
   ): Promise<SiteSettings>;
 }
-async function assertManager(
+export async function assertManager(
   tx: TripTransaction,
   actor: string,
   subject?: string,
@@ -59,7 +59,7 @@ async function assertManager(
     sql`SELECT pg_advisory_xact_lock(hashtextextended(${"admin:" + actor},0))`,
   );
   const result = await tx.execute(
-    sql`SELECT u.id FROM users u JOIN external_identities i ON i.user_id=u.id WHERE u.id=${actor} AND u.status='active' AND i.provider='line' AND (i.subject=${subject} OR (u.role='admin' AND ${!rootOnly}))`,
+    sql`SELECT u.id FROM users u JOIN external_identities i ON i.user_id=u.id WHERE u.id=${actor} AND u.status='active' AND i.provider=${subject.startsWith("email:") ? "admin_email" : "line"} AND (i.subject=${subject.replace(/^email:/, "")} OR (u.role='admin' AND ${!rootOnly}))`,
   );
   if (result.rowCount !== 1) throw new AdminError("forbidden");
 }
@@ -100,7 +100,7 @@ export function postgresAdminStore(url: string, subject?: string): AdminStore {
     const root =
       (
         await tx.execute(
-          sql`SELECT 1 FROM external_identities WHERE user_id=${actor} AND provider='line' AND subject=${subject!}`,
+          sql`SELECT 1 FROM external_identities WHERE user_id=${actor} AND provider=${subject?.startsWith("email:") ? "admin_email" : "line"} AND subject=${subject!.replace(/^email:/, "")}`,
         )
       ).rowCount === 1;
     const initial = (
@@ -110,7 +110,7 @@ export function postgresAdminStore(url: string, subject?: string): AdminStore {
     const isRoot =
       (
         await tx.execute(
-          sql`SELECT 1 FROM external_identities WHERE user_id=${id} AND provider='line' AND subject=${subject!}`,
+          sql`SELECT 1 FROM external_identities WHERE user_id=${id} AND provider=${subject?.startsWith("email:") ? "admin_email" : "line"} AND subject=${subject!.replace(/^email:/, "")}`,
         )
       ).rowCount === 1;
     if (isRoot) throw new AdminError("root_protected");
@@ -120,7 +120,7 @@ export function postgresAdminStore(url: string, subject?: string): AdminStore {
       );
     const row = (
       await tx.execute(
-        sql`SELECT status,status_version,role,EXISTS(SELECT 1 FROM external_identities WHERE user_id=${id} AND provider='line') AS has_identity FROM users WHERE id=${id} FOR UPDATE`,
+        sql`SELECT status,status_version,role,EXISTS(SELECT 1 FROM external_identities WHERE user_id=${id} AND provider=${subject?.startsWith("email:") ? "admin_email" : "line"}) AS has_identity FROM users WHERE id=${id} FOR UPDATE`,
       )
     ).rows[0];
     if (!row) throw new AdminError("not_found");
@@ -182,7 +182,7 @@ export function postgresAdminStore(url: string, subject?: string): AdminStore {
           : sql``;
         let query;
         if (kind === "users")
-          query = sql`SELECT t.id,t.display_name AS "displayName",t.status,t.role,t.status_version AS version,t.created_at AS "createdAt",EXISTS(SELECT 1 FROM external_identities i WHERE i.user_id=t.id AND i.provider='line' AND i.subject=${subject!}) AS "isRoot" FROM users t WHERE true ${after} ORDER BY t.created_at DESC,t.id DESC LIMIT 21`;
+          query = sql`SELECT t.id,t.display_name AS "displayName",t.status,t.role,t.status_version AS version,t.created_at AS "createdAt",EXISTS(SELECT 1 FROM external_identities i WHERE i.user_id=t.id AND i.provider=${subject?.startsWith("email:") ? "admin_email" : "line"} AND i.subject=${subject!.replace(/^email:/, "")}) AS "isRoot" FROM users t WHERE true ${after} ORDER BY t.created_at DESC,t.id DESC LIMIT 21`;
         else if (kind === "trips")
           query = sql`SELECT t.id,t.owner_id AS "ownerId",u.display_name AS "ownerName",t.origin_province AS "originProvince",t.destination_province AS "destinationProvince",t.departure_at AS "departureAt",t.status,t.version,t.seats_offered AS seats,t.seats_booked AS "bookedSeats",t.created_at AS "createdAt" FROM trips t JOIN users u ON u.id=t.owner_id WHERE true ${after} ORDER BY t.created_at DESC,t.id DESC LIMIT 21`;
         else if (kind === "requests")

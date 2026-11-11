@@ -876,3 +876,7 @@ footer {
   height: 1.2rem;
   margin-right: 0.5rem;
 }
+
+.private-preview {max-width:100%;width:320px;max-height:400px;object-fit:contain;}
+.route-map {min-width:0;width:100%;margin:1rem 0;isolation:isolate;}
+.leaflet-container {font-family:inherit;}
