@@ -35,3 +35,9 @@
 อ้างอิงเอกสาร Cloudflare ที่อ่าน 11พ.ย.2026: [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) Free100,000 Worker requests/วัน, CPU10ms/invocation; static asset requestsฟรีไม่จำกัด. [Hyperdrive pricing](https://developers.cloudflare.com/hyperdrive/platform/pricing/) Free100,000 database statements/วัน reset00:00UTC (07:00ไทย); ถึง quotaอาจตอบerror ไม่อัปเกรด Paidเอง. Admin reads/transactionsและauthนับใช้quotaด้วย ไม่มี polling. ไม่รับรองว่าจะอยู่ภายในFree quotaทุกปริมาณผู้ใช้ และยังไม่ได้วัดproductionCPUหรือยืนยันbillingplanของบัญชีจริงในงานนี้
 
 Neon เป็นฐานข้อมูลแยก มีFree quotaของ Neonเอง ต้องตรวจหน้าBillingของทั้งสองบริการ ห้ามใส่บัตร/เปลี่ยนPaidโดยอัตโนมัติ. Rootขั้นแรกไม่มีการชำระเงิน แจ้งเตือน LINE, bulk moderation, user data export หรือระบบเอกสารคนขับ
+
+## แยกหน้าผู้ใช้กับผู้ดูแล
+
+หลังเจ้าของขอแยกหน้า: `/` เป็นหน้าผู้ใช้เท่านั้น ไม่ mount/fetch AdminPanel แม้เป็นบัญชี Root และไม่ bypass maintenance ด้วยสิทธิ์ Root ในหน้าผู้ใช้. `/admin` เป็นหน้าผู้ดูแลแยก ใช้ session เดียวกันและตรวจสิทธิ์ API ทุกครั้ง ไม่แสดง search/ประกาศเที่ยวของตน/คำขอของตนในหน้านี้. สมาชิกทั่วไปเห็นข้อความไม่มีสิทธิ์และลิงก์กลับหน้าผู้ใช้; anonymous ต้อง login. หาก LINE login กลับ `/` ให้เปิด `/admin` อีกครั้ง. โหลด admin UI เป็น lazy chunk แยกจากหน้าหลัก ไม่เพิ่มโดเมน บริการ หรือ migration.
+
+นำรุ่นแยกหน้านี้ขึ้น Worker ที่ผูก canonical แล้ว: ตั้ง service/registration closed ก่อน แล้วใช้ Prepare production Worker operation=`maintenance_update` จาก main หลัง merge; `prepare` จะปฏิเสธ canonical ที่กำลังให้บริการแอปอยู่ตาม guard เดิม.

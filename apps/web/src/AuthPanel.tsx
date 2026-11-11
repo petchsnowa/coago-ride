@@ -4,10 +4,12 @@ export default function AuthPanel({
   onAccountChange,
   serviceOpen = true,
   registrationsOpen = true,
+  adminMode = false,
 }: {
   onAccountChange?: (account: AuthState | null) => void;
   serviceOpen?: boolean;
   registrationsOpen?: boolean;
+  adminMode?: boolean;
 } = {}) {
   const [account, setAccount] = useState<AuthState | null>(null),
     [error, setError] = useState(false),
@@ -64,16 +66,20 @@ export default function AuthPanel({
   return (
     <section className="account" aria-labelledby="account-title">
       <div>
-        <p className="eyebrow">บัญชีของฉัน</p>
-        <h2 id="account-title">เริ่มต้นด้วยบัญชี LINE</h2>
+        <p className="eyebrow">{adminMode ? "บัญชีผู้ดูแล" : "บัญชีของฉัน"}</p>
+        <h2 id="account-title">
+          {adminMode ? "เข้าสู่ระบบผู้ดูแลด้วย LINE" : "เริ่มต้นด้วยบัญชี LINE"}
+        </h2>
         <p>
-          {import.meta.env.VITE_APP_MODE === "production"
-            ? !serviceOpen
-              ? "เข้าสู่ระบบด้วยบัญชี LINE ของผู้ดูแลที่ได้รับสิทธิ์"
-              : !registrationsOpen
-                ? "สำหรับสมาชิกเดิม · ขณะนี้ยังไม่เปิดรับสมาชิกใหม่"
-                : "เข้าสู่ระบบเพื่อประกาศเที่ยวและส่งคำขอร่วมเดินทาง"
-            : "ระบบทดสอบสำหรับ COAGO Test · ยังไม่เปิดรับจอง"}
+          {adminMode
+            ? "หลังเข้าสู่ระบบแล้ว หากกลับหน้าหลัก ให้เปิด /admin อีกครั้ง"
+            : import.meta.env.VITE_APP_MODE === "production"
+              ? !serviceOpen
+                ? "ขณะนี้บริการอยู่ระหว่างเตรียมความพร้อม"
+                : !registrationsOpen
+                  ? "สำหรับสมาชิกเดิม · ขณะนี้ยังไม่เปิดรับสมาชิกใหม่"
+                  : "เข้าสู่ระบบเพื่อประกาศเที่ยวและส่งคำขอร่วมเดินทาง"
+              : "ระบบทดสอบสำหรับ COAGO Test · ยังไม่เปิดรับจอง"}
         </p>
       </div>
       <div className="account-actions">

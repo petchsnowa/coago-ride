@@ -1,13 +1,32 @@
 import RideRequestsPanel from "./RideRequestsPanel";
-import { useCallback } from "react";
+import { lazy, Suspense, useCallback } from "react";
 import { useEffect, useRef, useState } from "react";
 import { readySchema, type AuthState } from "@coago/contracts";
 import AuthPanel from "./AuthPanel";
 import TripsPanel from "./TripsPanel";
 import SearchTrips from "./SearchTrips";
-import AdminPanel from "./AdminPanel";
+const AdminPage = lazy(() => import("./AdminPage"));
 import { siteSettingsSchema, type SiteSettings } from "@coago/contracts";
 export default function App() {
+  if (
+    window.location.pathname === "/admin" ||
+    window.location.pathname.startsWith("/admin/")
+  ) {
+    return (
+      <Suspense
+        fallback={
+          <main>
+            <p role="status">กำลังโหลดหน้าผู้ดูแล…</p>
+          </main>
+        }
+      >
+        <AdminPage />
+      </Suspense>
+    );
+  }
+  return <UserPage />;
+}
+function UserPage() {
   const production = import.meta.env.VITE_APP_MODE === "production";
   const adminEnabled =
     production || import.meta.env.VITE_ADMIN_ENABLED === "true";
@@ -16,13 +35,6 @@ export default function App() {
       ? null
       : { serviceOpen: true, registrationsOpen: true, version: 1 },
   );
-  const [root, setRoot] = useState(false),
-    [siteRevision, setSiteRevision] = useState(0);
-  const roleChanged = useCallback((value: boolean) => setRoot(value), []);
-  const siteChanged = useCallback(() => {
-    setSiteRevision((v) => v + 1);
-    setRequestRevision((v) => v + 1);
-  }, []);
   useEffect(() => {
     if (!adminEnabled) return;
     const control = new AbortController();
@@ -39,7 +51,7 @@ export default function App() {
         if (!control.signal.aborted) setSite(null);
       });
     return () => control.abort();
-  }, [adminEnabled, siteRevision]);
+  }, [adminEnabled]);
   const [requestRevision, setRequestRevision] = useState(0);
   const requestsChanged = useCallback(
     () => setRequestRevision((value) => value + 1),
@@ -87,7 +99,7 @@ export default function App() {
           </span>
         </div>
       </nav>
-      {site?.serviceOpen || root ? (
+      {site?.serviceOpen ? (
         <SearchTrips
           account={account}
           onRequestChange={requestsChanged}
@@ -106,14 +118,7 @@ export default function App() {
         serviceOpen={site?.serviceOpen ?? false}
         registrationsOpen={site?.registrationsOpen ?? false}
       />
-      {adminEnabled && (
-        <AdminPanel
-          account={account}
-          onRole={roleChanged}
-          onChange={siteChanged}
-        />
-      )}
-      {(site?.serviceOpen || root) && (
+      {site?.serviceOpen && (
         <>
           <RideRequestsPanel
             account={account}
