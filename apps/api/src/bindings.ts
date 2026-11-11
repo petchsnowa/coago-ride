@@ -7,6 +7,7 @@ export type Bindings = {
   LINE_CHANNEL_ID?: string;
   LINE_CHANNEL_SECRET?: string;
   LINE_CALLBACK_URL?: string;
+  RELEASE_COMMIT?: string;
   ASSETS?: { fetch(request: Request): Promise<Response> };
 };
 export function databaseUrl(env: Bindings): string {

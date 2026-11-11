@@ -6,6 +6,7 @@ import AuthPanel from "./AuthPanel";
 import TripsPanel from "./TripsPanel";
 import SearchTrips from "./SearchTrips";
 export default function App() {
+  const production = import.meta.env.VITE_APP_MODE === "production";
   const [requestRevision, setRequestRevision] = useState(0);
   const requestsChanged = useCallback(
     () => setRequestRevision((value) => value + 1),
@@ -48,7 +49,9 @@ export default function App() {
         <div className="header-links">
           <a href="#search-form">ค้นหาเที่ยว</a>
           <a href="#trips-title">เที่ยวของฉัน</a>
-          <span className="badge">เว็บทดสอบ</span>
+          <span className="badge">
+            {production ? "ร่วมเดินทาง" : "เว็บทดสอบ"}
+          </span>
         </div>
       </nav>
       <SearchTrips
@@ -66,8 +69,14 @@ export default function App() {
       <section className="system" aria-labelledby="system-title">
         <div>
           <p className="eyebrow">เริ่มต้นไปด้วยกัน</p>
-          <h2 id="system-title">เรากำลังเตรียม COAGO ให้พร้อม</h2>
-          <p>ทดสอบส่งคำขอ ตอบรับ และยกเลิกที่นั่ง</p>
+          <h2 id="system-title">
+            {production ? "สถานะระบบ COAGO" : "เรากำลังเตรียม COAGO ให้พร้อม"}
+          </h2>
+          <p>
+            {production
+              ? "ประกาศเที่ยวและจัดการคำขอร่วมเดินทาง"
+              : "ทดสอบส่งคำขอ ตอบรับ และยกเลิกที่นั่ง"}
+          </p>
         </div>
         <div className="check">
           <button onClick={check} disabled={status === "loading"}>
@@ -82,7 +91,9 @@ export default function App() {
               {
                 idle: "กดเพื่อตรวจความพร้อมของระบบ",
                 loading: "กำลังเชื่อมต่อระบบ",
-                ready: "ระบบพร้อมสำหรับการพัฒนาต่อ",
+                ready: production
+                  ? "เชื่อมต่อระบบสำเร็จ"
+                  : "ระบบพร้อมสำหรับการพัฒนาต่อ",
                 error: "ระบบยังไม่พร้อม กรุณาลองอีกครั้ง",
               }[status]
             }

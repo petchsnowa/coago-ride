@@ -26,6 +26,11 @@ export function createApp(
     c.header("X-Content-Type-Options", "nosniff");
     c.header("X-Frame-Options", "DENY");
     c.header("Referrer-Policy", "no-referrer");
+    if (
+      c.env.ENVIRONMENT === "production" &&
+      /^[a-f\d]{40}$/.test(c.env.RELEASE_COMMIT ?? "")
+    )
+      c.header("X-COAGO-Release", c.env.RELEASE_COMMIT!);
     c.header(
       "Content-Security-Policy",
       "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://access.line.me",
@@ -44,6 +49,26 @@ export function createApp(
           : undefined,
     }),
   );
+  // A workers.dev preview may read public data/health, but must not start login
+  // or create sessions/requests before the canonical domain is connected.
+  app.use("/api/*", async (c, next) => {
+    if (
+      c.env.ENVIRONMENT === "production" &&
+      new URL(c.req.url).origin !== c.env.APP_ORIGIN
+    ) {
+      c.header("Cache-Control", "no-store");
+      if (c.req.path === "/api/auth/me" && c.req.method === "GET")
+        return c.json({ user: null, csrfToken: null, loginAvailable: false });
+      if (
+        c.req.path.startsWith("/api/auth/") ||
+        !["GET", "HEAD"].includes(c.req.method)
+      )
+        return c.json({ error: "canonical_origin_required" }, 403);
+      if (/^\/api\/(?:trips|ride-requests)(?:\/|$)/.test(c.req.path))
+        return c.json({ error: "unauthorized" }, 401);
+    }
+    await next();
+  });
   app.get("/health/live", (c) => c.json(liveSchema.parse({ status: "ok" })));
   app.get("/health/ready", async (c) => {
     try {

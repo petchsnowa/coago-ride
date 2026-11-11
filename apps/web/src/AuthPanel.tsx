@@ -60,7 +60,11 @@ export default function AuthPanel({
       <div>
         <p className="eyebrow">บัญชีของฉัน</p>
         <h2 id="account-title">เริ่มต้นด้วยบัญชี LINE</h2>
-        <p>ระบบทดสอบสำหรับ COAGO Test · ยังไม่เปิดรับจอง</p>
+        <p>
+          {import.meta.env.VITE_APP_MODE === "production"
+            ? "เข้าสู่ระบบเพื่อประกาศเที่ยวและส่งคำขอร่วมเดินทาง"
+            : "ระบบทดสอบสำหรับ COAGO Test · ยังไม่เปิดรับจอง"}
+        </p>
       </div>
       <div className="account-actions">
         {account?.user ? (
