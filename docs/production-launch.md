@@ -154,3 +154,21 @@ Hyperdriveคงอยู่ทั้งเมื่อทดสอบผ่า�
 หลัง workflowเข้าmain: Actions → Production Hyperdrive connection → Run workflow → main → project_confirmation `coago-production` → Run workflow เมื่อผ่านต้องเห็น `PRODUCTION_HYPERDRIVE_PASS` แล้วบันทึก ID ใน Environment production variable `COAGO_PRODUCTION_HYPERDRIVE_ID` เพื่อใช้ขั้นเว็บจริง/rerun ผู้ใช้ยังไม่ต้องตั้งIDในการสร้างครั้งแรก
 
 ผล local ของรอบนี้:200 unit/API/policy/worker testsผ่าน, lint/typecheckผ่าน, probe bundle dry runและ local Workers runtimeกับPostgreSQL/PostGISจริงผ่าน (JSON Hyperdrive fixture ไม่ใช่หลักฐานremote Hyperdrive) ยังไม่สร้าง Hyperdrive productionจริงจนกว่า manual workflow จะรัน และยังไม่แก้DNS/LINE หรือเปิดเว็บproduction
+
+## เตรียม Worker พร้อม LINE production ก่อน cutover
+
+11พ.ย.2026 [Production Hyperdrive run42951965237](https://github.com/petchsnowa/coago-ride/actions/runs/42951965237) ผ่านจริง: ID2e437b2ff82c46b99963380be05335f0, remote Workers→Hyperdrive→Neon PostgreSQL18.6/PostGIS3.6.4, appTables8/migrations7, spatialSRID4326 และ previewหยุดแล้ว เจ้าของแจ้งว่าเพิ่มIDนี้ใน Environment production และให้production LINE Channel ID2009685358 พร้อมแจ้งว่าเพิ่ม LINE secret แล้ว ไม่อ่าน/เผยsecretในchat และยังไม่ได้พิสูจน์ว่าsecretจับคู่channelถูกด้วยrealLINElogin
+
+เพิ่ม workflow **Prepare production Worker** manual main/Environment production ใช้ค่าเดิมทั้งหมด build VITE_APP_MODE=production และsame-originAPI (public buildvaluesเท่านั้น) Workerชื่อcoago-production/app URL https://coago-production.akkarapatchara.workers.dev, APP_ORIGIN https://coago.space และcallback https://coago.space/api/auth/line/callback ช่องLINEต้อง2009685358/Hyperdriveต้องIDที่ผ่านจริง บัญชี/Directhost/neondbต้องตรงค่าที่pinไว้
+
+ตรวจHyperdrive metadata/cache, Direct TLS/schema/journalhash7ก่อนupload ไม่มีmigrations, test data copy หรือ synthetic authenticated accounts Workerเดิมที่ชื่อชนแต่ไม่มีCOAGO_PRODUCTION_OWNER petchsnowa/coago-ride:production และbindingIDตรงกันจะไม่ถูกทับ หากcanonical healthมีX-COAGO-Releaseแล้วให้หยุดprepareก่อนupload เพื่อแยกจากการอัปเดตแอปที่liveแล้ว
+
+Config routes=[] ไม่มีcustom_domain/zoneDNSAPIในสคริปต์: Wrangler4.110.0ที่pinจะpublish routes/custom domainsเฉพาะเมื่อroutesOnly/customDomainsOnlyไม่ว่าง จึงไม่เรียกPUT routesหรือจัดการDNSในworkflowนี้ workers_dev=trueตั้งเฉพาะURLชั่วคราวของWorker Observabilityยังปิดระหว่างรอlog/privacyconfigurationที่reviewแล้ว Secretส่งผ่านtempfile0600ที่maskและลบเมื่อจบ ไม่ส่งsecretเข้าVITE_*หรือsource
+
+บนhostนอกcanonical: anonymous /api/auth/meคืนloginAvailable=false; login/callbackและทุกAPIwriteถูกblock403ก่อนstore; privateAPIreads401แม้แนบsessioncookie ส่วนpublicdiscovery/health/assetsอ่านได้ ทำให้previewไม่เริ่มOAuth flowsหรืออ่านsessionsของcoago.space เมื่อcoago.spaceชี้Workerแล้วcanonicalauth/writeใช้guardsเดิมตามปกติ การเพิ่มguardไม่ใช่การยืนยันว่าLINEConsoleเป็นPublished/callback/secretคู่กันแล้ว
+
+SmokeหลังuploadตรวจHTTPS/readinessพร้อมX-COAGO-ReleaseตรงGitHubSHA, publicGET/assets, private401, previewlogin/callback403และanonymousdisabled ไม่มีLINEstartจริง/ข้อมูลDBwrite หากuploadแล้วverificationล้มเหลวWorkerอาจคงอยู่บนworkers.devเพื่อdebug/retry ไม่ลบWorkerหรือเปลี่ยนDNSเพื่อแก้เอง Builddefault/local/stagingยังแสดงเว็บทดสอบ; productionbuildใช้ข้อความบริการโดยไม่เปลี่ยนlayout
+
+หลังreview/merge: Actions→Prepare production Worker→Run workflow→main→project_confirmation coago-production→Run workflow เมื่อได้PRODUCTION_WORKER_PREPARED/PASSจึงตรวจDNSเดิมและเตรียมcutoverเป็นขั้นแยก วิธีrelease:checkเดิมคาดว่าloginAvailable=trueบนcanonical จึงไม่ใช้แทนpreviewsmokeที่ตั้งใจปิดlogin หลังcutoverต้องทดสอบLINEจริงสองบัญชี/การปฏิเสธ/ที่นั่งและตรวจprivacy/terms/backup/monitoringตามรายการที่ยังค้างก่อนเปิดให้ผู้ใช้ทั่วไป
+
+ผลตรวจ local ของการเตรียมWorkerรอบนี้: lint/typecheck,217 unit/API/guard/UI tests,web/APIbuild/dryrun,local Workers production-mode→ฐานPostgreSQLจริงพร้อมเช็กOAuthflow countไม่เพิ่ม และ46browser regression testsผ่าน BuildproductionแยกตรวจChromium390/1440ด้วยmockedAPI: ข้อความproduction, ไม่มีปุ่มloginเมื่อpreviewdisabled, ไม่มีhorizontaloverflow ยังไม่ใช้ผลเหล่านี้แทนremoteWorkerdeploymentหรือrealLINElogin

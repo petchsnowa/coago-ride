@@ -189,3 +189,7 @@ Phase 1 รวมเข้า main แล้ว งานรอบ LINE Login �
 ## เชื่อม Hyperdrive production
 
 หลัง bootstrap production run42790784081 ผ่าน เจ้าของอนุญาตเชื่อมฐาน ให้ทำ manual workflow แยกสำหรับ coago-production-db บนบัญชี/Direct hostเดิมที่ตรวจแล้ว ใช้ authenticated remote preview กับ read-only metadata/spatial SQL แล้วหยุดpreview เก็บ Hyperdriveไว้ให้แอปขั้นถัดไป ไม่ update/delete configurationเดิม ไม่deployเว็บ/แก้DNS/LINEจากคำสั่งเชื่อมฐานนี้ ต้อง pin ID ก่อน reuse และตรวจ origin/cache disabled ทุกครั้ง
+
+## เตรียมเว็บ production ก่อนสลับโดเมน
+
+เจ้าของเพิ่ม production Hyperdrive ID, LINE_CHANNEL_ID2009685358 และแจ้งว่าบันทึก LINE secret ใน production แล้ว ให้เตรียม manual Worker deploy ชื่อ coago-production บน workers.dev โดยคง APP_ORIGIN/callback coago.space, ไม่แก้DNS/LINE Console ไม่migrateหรือเขียนข้อมูลจากsmoke ปิด auth/private reads/writes บน hostนอกcanonicalก่อนstoreเข้าถึง ใช้owner markerก่อนupdateWorkerเดิม และหยุดprepareหากcoago.spaceตอบreleaseheaderว่าแอปliveแล้ว คงให้เจ้าของmerge/Run workflowเองตามรูปแบบเดิม
