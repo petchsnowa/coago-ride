@@ -6,6 +6,8 @@ import {
   oauthFlows,
   authSessions,
   authRateLimits,
+  siteSettings,
+  adminAudit,
 } from "@coago/db";
 import type { LineIdentity } from "./line";
 export type User = { id: string; displayName: string };
@@ -16,7 +18,7 @@ export type Flow = {
   verifier: string;
   expiresAt: Date;
 };
-export type Session = { user: User; csrfToken: string };
+export type Session = { user: User; csrfToken: string; rootVerified?: boolean };
 export interface AuthStore {
   allowStart(key: string, now: Date): Promise<boolean>;
   saveFlow(flow: Flow): Promise<void>;
@@ -31,6 +33,7 @@ export interface AuthStore {
     csrfToken: string,
     expiresAt: Date,
     now: Date,
+    policy?: { rootSubject?: string; enforceAccess?: boolean },
   ): Promise<User>;
   getSession(tokenHash: string, now: Date): Promise<Session | undefined>;
   deleteSession(tokenHash: string): Promise<void>;
@@ -80,7 +83,14 @@ export function postgresAuthStore(url: string): AuthStore {
         return rows[0];
       });
     },
-    async createSession(identity, tokenHash, csrfToken, expiresAt, now) {
+    async createSession(
+      identity,
+      tokenHash,
+      csrfToken,
+      expiresAt,
+      now,
+      policy,
+    ) {
       return withDatabase(url, async (db) =>
         db.transaction(async (tx) => {
           // Serializes simultaneous first logins for this verified LINE identity.
@@ -97,37 +107,65 @@ export function postgresAuthStore(url: string): AuthStore {
               ),
             );
           const userId = existing[0]?.userId ?? crypto.randomUUID();
+          const configuredRoot =
+            /^U[a-f\d]{32}$/.test(policy?.rootSubject ?? "") &&
+            policy?.rootSubject === identity.subject;
+          if (existing[0]) {
+            const [user] = await tx
+              .select({ status: users.status })
+              .from(users)
+              .where(eq(users.id, userId))
+              .for("update");
+            if (!user || user.status !== "active")
+              throw new Error("ACCOUNT_SUSPENDED");
+          } else if (policy?.enforceAccess && !configuredRoot) {
+            const [settings] = await tx
+              .select()
+              .from(siteSettings)
+              .where(eq(siteSettings.id, "site"));
+            if (!settings?.registrationsOpen)
+              throw new Error("REGISTRATION_CLOSED");
+          }
           if (!existing[0]) {
-            await tx
-              .insert(users)
-              .values({
-                id: userId,
-                displayName: identity.displayName,
-                createdAt: now,
-              });
-            await tx
-              .insert(externalIdentities)
-              .values({
-                provider: "line",
-                subject: identity.subject,
-                userId,
-                createdAt: now,
-              });
+            await tx.insert(users).values({
+              id: userId,
+              displayName: identity.displayName,
+              createdAt: now,
+            });
+            await tx.insert(externalIdentities).values({
+              provider: "line",
+              subject: identity.subject,
+              userId,
+              createdAt: now,
+            });
           } else {
             await tx
               .update(users)
               .set({ displayName: identity.displayName })
               .where(eq(users.id, userId));
           }
-          await tx
-            .insert(authSessions)
-            .values({
-              tokenHash,
-              userId,
-              csrfToken,
-              expiresAt,
-              createdAt: now,
-            });
+          if (configuredRoot)
+            await tx
+              .insert(adminAudit)
+              .values({
+                id: crypto.randomUUID(),
+                actorId: userId,
+                action: "root_bootstrap",
+                targetType: "user",
+                targetId: userId,
+                reason: "Configured owner verified by LINE",
+                details: {},
+                createdAt: now,
+              })
+              .onConflictDoNothing();
+          await tx.insert(authSessions).values({
+            tokenHash,
+            userId,
+            csrfToken,
+            rootVerified: configuredRoot,
+            expiresAt,
+            createdAt: now,
+          });
           return { id: userId, displayName: identity.displayName };
         }),
       );
@@ -139,6 +177,7 @@ export function postgresAuthStore(url: string): AuthStore {
             id: users.id,
             displayName: users.displayName,
             csrfToken: authSessions.csrfToken,
+            rootVerified: authSessions.rootVerified,
           })
           .from(authSessions)
           .innerJoin(users, eq(authSessions.userId, users.id))
@@ -146,12 +185,14 @@ export function postgresAuthStore(url: string): AuthStore {
             and(
               eq(authSessions.tokenHash, tokenHash),
               gt(authSessions.expiresAt, now),
+              eq(users.status, "active"),
             ),
           );
         return rows[0]
           ? {
               user: { id: rows[0].id, displayName: rows[0].displayName },
               csrfToken: rows[0].csrfToken,
+              ...(rows[0].rootVerified ? { rootVerified: true } : {}),
             }
           : undefined;
       });

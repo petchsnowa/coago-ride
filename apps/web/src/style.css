@@ -798,3 +798,81 @@ footer {
 .request-offer p {
   white-space: pre-wrap;
 }
+
+.site-closed {
+  padding: 3rem 0;
+  max-width: 52rem;
+}
+.admin-panel {
+  margin-block: 3rem;
+  padding: clamp(1rem, 3vw, 2rem);
+  background: #fff;
+  border: 2px solid #194f41;
+  border-radius: 1.5rem;
+}
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-block: 1.5rem;
+}
+.admin-tabs button[aria-pressed="true"] {
+  background: #194f41;
+  color: #fff;
+}
+.admin-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 1rem;
+}
+.admin-kpis > div {
+  background: #edf2e7;
+  padding: 1.3rem;
+  border-radius: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+.admin-kpis strong {
+  font-size: 2rem;
+}
+.admin-list {
+  display: grid;
+  gap: 1rem;
+}
+.admin-list article,
+.admin-confirm,
+.admin-settings {
+  border: 1px solid #d6e1cf;
+  border-radius: 1rem;
+  padding: 1.2rem;
+  margin-block: 1rem;
+  overflow-wrap: anywhere;
+}
+.admin-list h3 {
+  margin-top: 0;
+}
+.admin-confirm {
+  background: #f4f2df;
+}
+.admin-confirm label,
+.admin-settings label {
+  display: block;
+  margin-bottom: 1rem;
+}
+.admin-confirm textarea {
+  display: block;
+  width: 100%;
+  min-height: 6rem;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 0.8rem;
+  margin-top: 0.4rem;
+}
+.admin-confirm button {
+  margin: 0.4rem 0.5rem 0.4rem 0;
+}
+.admin-settings input {
+  width: 1.2rem;
+  height: 1.2rem;
+  margin-right: 0.5rem;
+}

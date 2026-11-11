@@ -8,6 +8,8 @@ export type Bindings = {
   LINE_CHANNEL_SECRET?: string;
   LINE_CALLBACK_URL?: string;
   RELEASE_COMMIT?: string;
+  ROOT_ADMIN_LINE_SUBJECT?: string;
+  SITE_ACCESS_ENFORCED?: string;
   ASSETS?: { fetch(request: Request): Promise<Response> };
 };
 export function databaseUrl(env: Bindings): string {

@@ -16,6 +16,7 @@ const env = {
   COAGO_TEST_DATABASE_URL:
     "postgresql://fixture:fixture-only@ep-test.neon.tech/neondb?sslmode=require",
   CLOUDFLARE_ACCOUNT_ID: "ca1d36a602c74e57ebacaf8676da3eeb",
+  ROOT_ADMIN_LINE_SUBJECT: "U" + "a".repeat(32),
   LINE_CHANNEL_ID: productionChannelId,
   LINE_CHANNEL_SECRET: "fixture-only",
   GITHUB_SHA: "a".repeat(40),

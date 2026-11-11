@@ -6,6 +6,7 @@ import {
   timestamp,
   uuid,
   integer,
+  boolean,
   primaryKey,
   index,
   uniqueIndex,
@@ -19,13 +20,71 @@ export const systemMetadata = pgTable("system_metadata", {
     .notNull(),
 });
 
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey(),
-  displayName: text("display_name").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey(),
+    displayName: text("display_name").notNull(),
+    status: text("status").notNull().default("active"),
+    statusVersion: integer("status_version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    check("users_status", sql`${t.status} in ('active','suspended')`),
+    check("users_status_version", sql`${t.statusVersion}>0`),
+  ],
+);
+export const siteSettings = pgTable(
+  "site_settings",
+  {
+    id: text("id").primaryKey().default("site"),
+    serviceOpen: boolean("service_open").notNull().default(false),
+    registrationsOpen: boolean("registrations_open").notNull().default(false),
+    version: integer("version").notNull().default(1),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check("site_settings_singleton", sql`${t.id}='site'`),
+    check("site_settings_version", sql`${t.version}>0`),
+  ],
+);
+export const adminAudit = pgTable(
+  "admin_audit",
+  {
+    id: uuid("id").primaryKey(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    action: text("action").notNull(),
+    targetType: text("target_type").notNull(),
+    targetId: text("target_id").notNull(),
+    reason: text("reason").notNull(),
+    details: jsonb("details").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("admin_audit_created_idx").on(t.createdAt, t.id),
+    uniqueIndex("admin_root_bootstrap_idx")
+      .on(t.targetId)
+      .where(sql`${t.action}='root_bootstrap'`),
+    check("admin_audit_reason", sql`length(${t.reason})<=300`),
+    check(
+      "admin_audit_action",
+      sql`${t.action} in ('root_bootstrap','user_suspended','user_activated','trip_cancelled','settings_changed')`,
+    ),
+    check(
+      "admin_audit_target",
+      sql`${t.targetType} in ('user','trip','settings')`,
+    ),
+    check("admin_audit_details", sql`jsonb_typeof(${t.details})='object'`),
+  ],
+);
 export const externalIdentities = pgTable(
   "external_identities",
   {
@@ -59,6 +118,7 @@ export const authSessions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     csrfToken: text("csrf_token").notNull(),
+    rootVerified: boolean("root_verified").notNull().default(false),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

@@ -25,6 +25,7 @@ const available = (now: Date) =>
     eq(trips.status, "active"),
     gt(trips.departureAt, now),
     lt(trips.bookedSeats, trips.seats),
+    sql`EXISTS(SELECT 1 FROM users owner WHERE owner.id=${trips.ownerId} AND owner.status='active')`,
   );
 export interface DiscoveryStore {
   upcoming(now: Date): Promise<PublicTripList>;

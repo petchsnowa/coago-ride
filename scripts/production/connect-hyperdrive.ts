@@ -1,3 +1,4 @@
+import { currentAppTableCount, currentMigrationCount } from "@coago/db";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { mkdir, writeFile, appendFile, rm } from "node:fs/promises";
@@ -65,9 +66,9 @@ async function main() {
       });
     if (
       !schema.postgis ||
-      schema.appTables !== 8 ||
-      schema.migrations !== 7 ||
-      expected.length !== 7
+      schema.appTables !== currentAppTableCount ||
+      schema.migrations !== currentMigrationCount ||
+      expected.length !== currentMigrationCount
     )
       throw new Error("PRODUCTION_SCHEMA_NOT_READY");
     const rows = (
@@ -85,7 +86,7 @@ async function main() {
     )
       throw new Error("PRODUCTION_MIGRATION_HISTORY_MISMATCH");
     console.log(
-      "PASS production Direct TLS preflight: schema and all seven migration hashes match",
+      "PASS production Direct TLS preflight: schema and all current migration hashes match",
     );
   } finally {
     await client.end().catch(() => {});
@@ -186,8 +187,8 @@ async function main() {
     }
     assert(report, "PRODUCTION_REMOTE_PROBE_UNAVAILABLE");
     assert.equal(report.transport, "hyperdrive");
-    assert.equal(report.appTables, 8);
-    assert.equal(report.migrations, 7);
+    assert.equal(report.appTables, currentAppTableCount);
+    assert.equal(report.migrations, currentMigrationCount);
     assert.equal(report.point, "POINT(100.5018 13.7563)");
     assert.equal(report.srid, 4326);
     assert.equal(typeof report.postgres, "string");
@@ -197,7 +198,7 @@ async function main() {
       JSON.stringify({ hyperdriveId: id, ...report }),
     );
     await summary(
-      `\nRemote Workers preview → Hyperdrive → production Neon: **PASS**. Auth guard, PostgreSQL/PostGIS, 8 tables/7 migrations and spatial SRID verified with read-only SQL. Set environment variable \`COAGO_PRODUCTION_HYPERDRIVE_ID\` to \`${id}\` for the next step/retries. Real app/LINE login and coago.space are not deployed or tested by this probe.`,
+      `\nRemote Workers preview → Hyperdrive → production Neon: **PASS**. Auth guard, PostgreSQL/PostGIS, current tables/migration history and spatial SRID verified with read-only SQL. Set environment variable \`COAGO_PRODUCTION_HYPERDRIVE_ID\` to \`${id}\` for the next step/retries. Real app/LINE login and coago.space are not deployed or tested by this probe.`,
     );
   } finally {
     try {

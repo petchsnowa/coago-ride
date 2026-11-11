@@ -1,4 +1,5 @@
 import { and, desc, eq, gt, lt, or, sql } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { withDatabase, trips, rideRequests } from "@coago/db";
 import {
   tripSchema,
@@ -211,53 +212,61 @@ export function postgresTripStore(url: string): TripStore {
       });
     },
     async cancel(owner, id, input, now) {
-      return withDatabase(url, async (db) =>
-        db.transaction(async (tx) => {
-          const rows = await tx
-            .update(trips)
-            .set({
-              status: "cancelled",
-              bookedSeats: 0,
-              cancellationReason: input.reason,
-              version: sql`${trips.version}+1`,
-              updatedAt: now,
-            })
-            .where(
-              and(
-                ownerTrip(owner, id),
-                eq(trips.version, input.version),
-                eq(trips.status, "active"),
-                gt(trips.departureAt, now),
-              ),
-            )
-            .returning();
-          if (rows[0]) {
-            await tx
-              .update(rideRequests)
-              .set({ status: "cancelled", updatedAt: now })
-              .where(
-                and(
-                  eq(rideRequests.tripId, id),
-                  or(
-                    eq(rideRequests.status, "pending"),
-                    eq(rideRequests.status, "accepted"),
-                  ),
-                ),
-              );
-            return dto(rows[0]);
-          }
-          const [existing] = await tx
-            .select()
-            .from(trips)
-            .where(ownerTrip(owner, id));
-          if (
-            existing?.status === "cancelled" &&
-            existing.cancellationReason === input.reason
-          )
-            return dto(existing);
-          return checkEditable(existing, now);
-        }),
+      return withDatabase(url, (db) =>
+        db.transaction((tx) => cancelOwnedTrip(tx, owner, id, input, now)),
       );
     },
   };
+}
+
+export type TripTransaction = Parameters<
+  Parameters<NodePgDatabase["transaction"]>[0]
+>[0];
+export async function cancelOwnedTrip(
+  tx: TripTransaction,
+  owner: string,
+  id: string,
+  input: CancelTrip,
+  now: Date,
+): Promise<Trip> {
+  const rows = await tx
+    .update(trips)
+    .set({
+      status: "cancelled",
+      bookedSeats: 0,
+      cancellationReason: input.reason,
+      version: sql`${trips.version}+1`,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        ownerTrip(owner, id),
+        eq(trips.version, input.version),
+        eq(trips.status, "active"),
+        gt(trips.departureAt, now),
+      ),
+    )
+    .returning();
+  if (rows[0]) {
+    await tx
+      .update(rideRequests)
+      .set({ status: "cancelled", updatedAt: now })
+      .where(
+        and(
+          eq(rideRequests.tripId, id),
+          or(
+            eq(rideRequests.status, "pending"),
+            eq(rideRequests.status, "accepted"),
+          ),
+        ),
+      );
+    return dto(rows[0]);
+  }
+  const [existing] = await tx.select().from(trips).where(ownerTrip(owner, id));
+  if (
+    existing?.status === "cancelled" &&
+    existing.cancellationReason === input.reason
+  )
+    return dto(existing);
+  return checkEditable(existing, now);
 }

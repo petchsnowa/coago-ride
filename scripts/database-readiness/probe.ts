@@ -16,7 +16,7 @@ export async function probeDatabase(client: pg.Client) {
         (SELECT count(*)::int FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
           WHERE n.nspname='public' AND c.relkind IN ('r','p')
           AND c.relname IN ('users','external_identities','oauth_flows','auth_sessions',
-            'auth_rate_limits','trips','ride_requests','system_metadata')) AS app_tables
+            'auth_rate_limits','trips','ride_requests','system_metadata','admin_audit','site_settings')) AS app_tables
     `)
     ).rows[0];
     if (result.readonly !== "on")

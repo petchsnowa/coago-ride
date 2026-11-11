@@ -1,0 +1,1 @@
+ALTER TABLE "auth_sessions" ADD COLUMN "root_verified" boolean DEFAULT false NOT NULL;

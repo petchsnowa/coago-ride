@@ -2,7 +2,13 @@ import { useEffect, useState } from "react";
 import { authStateSchema, type AuthState } from "@coago/contracts";
 export default function AuthPanel({
   onAccountChange,
-}: { onAccountChange?: (account: AuthState | null) => void } = {}) {
+  serviceOpen = true,
+  registrationsOpen = true,
+}: {
+  onAccountChange?: (account: AuthState | null) => void;
+  serviceOpen?: boolean;
+  registrationsOpen?: boolean;
+} = {}) {
   const [account, setAccount] = useState<AuthState | null>(null),
     [error, setError] = useState(false),
     [busy, setBusy] = useState(false),
@@ -62,7 +68,11 @@ export default function AuthPanel({
         <h2 id="account-title">เริ่มต้นด้วยบัญชี LINE</h2>
         <p>
           {import.meta.env.VITE_APP_MODE === "production"
-            ? "เข้าสู่ระบบเพื่อประกาศเที่ยวและส่งคำขอร่วมเดินทาง"
+            ? !serviceOpen
+              ? "เข้าสู่ระบบด้วยบัญชี LINE ของผู้ดูแลที่ได้รับสิทธิ์"
+              : !registrationsOpen
+                ? "สำหรับสมาชิกเดิม · ขณะนี้ยังไม่เปิดรับสมาชิกใหม่"
+                : "เข้าสู่ระบบเพื่อประกาศเที่ยวและส่งคำขอร่วมเดินทาง"
             : "ระบบทดสอบสำหรับ COAGO Test · ยังไม่เปิดรับจอง"}
         </p>
       </div>

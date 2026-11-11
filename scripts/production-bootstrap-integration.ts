@@ -6,6 +6,24 @@ import pg from "pg";
 import { testDatabaseUrl } from "./database";
 import { bootstrapEmptyDatabase } from "./production/bootstrap";
 
+const baseline = await mkdtemp(join(tmpdir(), "coago-baseline-seven-"));
+await cp("packages/db/migrations", baseline, { recursive: true });
+const baselineJournal = JSON.parse(
+  await (
+    await import("node:fs/promises")
+  ).readFile(join(baseline, "meta/_journal.json"), "utf8"),
+);
+baselineJournal.entries = baselineJournal.entries.filter(
+  (e: { idx: number }) => e.idx < 7,
+);
+await (
+  await import("node:fs/promises")
+).writeFile(
+  join(baseline, "meta/_journal.json"),
+  JSON.stringify(baselineJournal),
+);
+const legacyBootstrap = (client: pg.Client) =>
+  bootstrapEmptyDatabase(client, baseline);
 const base = testDatabaseUrl(),
   admin = new pg.Client({ connectionString: base });
 const prefix = `coago_bootstrap_${crypto.randomUUID().replaceAll("-", "").slice(0, 10)}`;
@@ -30,13 +48,13 @@ try {
   await admin.connect();
   const { client, url } = await database("fresh");
   await assert.rejects(
-    bootstrapEmptyDatabase(client),
+    legacyBootstrap(client),
     domain("BOOTSTRAP_POSTGIS_REQUIRED"),
   );
   await client.query("CREATE EXTENSION postgis");
   await client.query("CREATE TABLE unrelated_data(id int)");
   await assert.rejects(
-    bootstrapEmptyDatabase(client),
+    legacyBootstrap(client),
     domain("BOOTSTRAP_DATABASE_NOT_EMPTY"),
   );
   assert.equal(
@@ -53,16 +71,16 @@ try {
   await other.connect();
   await other.query("SELECT pg_advisory_lock(207417,6)");
   await assert.rejects(
-    bootstrapEmptyDatabase(client),
+    legacyBootstrap(client),
     domain("BOOTSTRAP_ALREADY_RUNNING"),
   );
   await other.query("SELECT pg_advisory_unlock(207417,6)");
-  assert.deepEqual(await bootstrapEmptyDatabase(client), {
+  assert.deepEqual(await legacyBootstrap(client), {
     status: "initialized",
     migrations: 7,
     appTables: 8,
   });
-  assert.deepEqual(await bootstrapEmptyDatabase(client), {
+  assert.deepEqual(await legacyBootstrap(client), {
     status: "already_initialized",
     migrations: 7,
     appTables: 8,
@@ -72,7 +90,7 @@ try {
     "UPDATE drizzle.__drizzle_migrations SET hash='wrong' WHERE id=(SELECT min(id) FROM drizzle.__drizzle_migrations)",
   );
   await assert.rejects(
-    bootstrapEmptyDatabase(client),
+    legacyBootstrap(client),
     domain("BOOTSTRAP_MIGRATION_HISTORY_MISMATCH"),
   );
   await client.query("ROLLBACK");
@@ -82,7 +100,7 @@ try {
     [user],
   );
   await assert.rejects(
-    bootstrapEmptyDatabase(client),
+    legacyBootstrap(client),
     domain("BOOTSTRAP_DATABASE_NOT_EMPTY"),
   );
   assert.equal(
@@ -96,7 +114,7 @@ try {
   const second = (await database("rollback")).client;
   await second.query("CREATE EXTENSION postgis");
   const folder = join(dir, "migrations");
-  await cp("packages/db/migrations", folder, { recursive: true });
+  await cp(baseline, folder, { recursive: true });
   await appendFile(
     join(folder, "0006_uneven_butterfly.sql"),
     "\n--> statement-breakpoint\nSELECT 1/0;\n",
@@ -114,7 +132,10 @@ try {
     ).rows[0].n,
     0,
   );
-  assert.equal((await bootstrapEmptyDatabase(second)).status, "initialized");
+  assert.equal(
+    (await bootstrapEmptyDatabase(second, baseline)).status,
+    "initialized",
+  );
   assert.equal(
     (await second.query("SELECT count(*)::int AS n FROM users")).rows[0].n,
     0,
@@ -128,4 +149,5 @@ try {
     await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`);
   await admin.end();
   await rm(dir, { recursive: true, force: true });
+  await rm(baseline, { recursive: true, force: true });
 }

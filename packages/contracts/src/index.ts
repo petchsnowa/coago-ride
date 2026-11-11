@@ -31,3 +31,4 @@ export type AuthState = z.infer<typeof authStateSchema>;
 export * from "./trips";
 export * from "./discovery";
 export * from "./ride-requests";
+export * from "./admin";

@@ -50,6 +50,20 @@
       "when": 1794291188987,
       "tag": "0006_uneven_butterfly",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794370677210,
+      "tag": "0007_slimy_drax",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794372075601,
+      "tag": "0008_ancient_zeigeist",
+      "breakpoints": true
     }
   ]
 }

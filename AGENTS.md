@@ -193,3 +193,7 @@ Phase 1 รวมเข้า main แล้ว งานรอบ LINE Login �
 ## เตรียมเว็บ production ก่อนสลับโดเมน
 
 เจ้าของเพิ่ม production Hyperdrive ID, LINE_CHANNEL_ID2009685358 และแจ้งว่าบันทึก LINE secret ใน production แล้ว ให้เตรียม manual Worker deploy ชื่อ coago-production บน workers.dev โดยคง APP_ORIGIN/callback coago.space, ไม่แก้DNS/LINE Console ไม่migrateหรือเขียนข้อมูลจากsmoke ปิด auth/private reads/writes บน hostนอกcanonicalก่อนstoreเข้าถึง ใช้owner markerก่อนupdateWorkerเดิม และหยุดprepareหากcoago.spaceตอบreleaseheaderว่าแอปliveแล้ว คงให้เจ้าของmerge/Run workflowเองตามรูปแบบเดิม
+
+## Root Admin ก่อนเผยแพร่
+
+เจ้าของยืนยันขอบเขต dashboard, users/trips moderation, ride requests read, service/registration switches, audit และ LINE owner root เท่านั้น ให้ทำบน branch/PR ใหม่ ตรวจ local/CI ก่อน ไม่ merge/deploy/migrate production/เปลี่ยน DNS โดยอัตโนมัติ ย้าย static assets เป็น asset-first เพื่อ Free Workers คง default service/registration closed และห้าม first-user root. รายละเอียด docs/root-admin.md.

@@ -1,3 +1,4 @@
+import { currentAppTableCount, currentMigrationCount } from "@coago/db";
 import assert from "node:assert/strict";
 import pg from "pg";
 import { testDatabaseUrl } from "./database";
@@ -11,8 +12,8 @@ try {
   ).rows[0].count;
   const result = await probeDatabase(client);
   assert(result.postgres && result.postgis);
-  assert.equal(result.appTables, 8);
-  assert.equal(result.migrations, 7);
+  assert.equal(result.appTables, currentAppTableCount);
+  assert.equal(result.migrations, currentMigrationCount);
   assert.equal(
     (await client.query("SELECT count(*)::int AS count FROM users")).rows[0]
       .count,

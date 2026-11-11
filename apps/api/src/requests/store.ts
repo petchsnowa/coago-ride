@@ -107,6 +107,7 @@ async function byId(client: pg.Client, id: string) {
   return dto(rows[0]);
 }
 type TripRow = {
+  owner_status: string;
   id: string;
   owner_id: string;
   status: string;
@@ -126,10 +127,11 @@ type TripRow = {
 };
 const available = (trip: TripRow, now: Date) =>
   trip.status === "active" &&
+  trip.owner_status === "active" &&
   trip.seats_offered > trip.seats_booked &&
   trip.departure_at > now;
 const tripSelect =
-  "SELECT id,owner_id,status,seats_offered,seats_booked,version,departure_at,origin_province,destination_province,pickup_point,dropoff_point,vehicle_model,vehicle_color,contribution_satang,luggage_notes,conditions FROM trips";
+  "SELECT (SELECT u.status FROM users u WHERE u.id=trips.owner_id) AS owner_status,id,owner_id,status,seats_offered,seats_booked,version,departure_at,origin_province,destination_province,pickup_point,dropoff_point,vehicle_model,vehicle_color,contribution_satang,luggage_notes,conditions FROM trips";
 function snapshot(trip: TripRow) {
   return publicTripDetailSchema.parse({
     id: trip.id,

@@ -29,7 +29,9 @@
     "test:database-readiness:integration": "tsx --env-file-if-exists=.env scripts/database-readiness-integration.ts",
     "test:production-bootstrap:integration": "tsx --env-file-if-exists=.env scripts/production-bootstrap-integration.ts",
     "test:production-hyperdrive:workers": "tsx --env-file-if-exists=.env scripts/production-hyperdrive-workers.ts",
-    "test:production-worker:runtime": "tsx --env-file-if-exists=.env scripts/production-worker-runtime.ts"
+    "test:production-worker:runtime": "tsx --env-file-if-exists=.env scripts/production-worker-runtime.ts",
+    "test:admin:integration": "tsx --env-file-if-exists=.env scripts/admin-integration.ts",
+    "test:admin:upgrade": "tsx --env-file-if-exists=.env scripts/admin-upgrade-integration.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261108.1",

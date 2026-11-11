@@ -17,6 +17,8 @@ export function productionWorkerSettings(env: NodeJS.ProcessEnv) {
     throw new Error("PRODUCTION_LINE_CHANNEL_MISMATCH");
   if (!env.LINE_CHANNEL_SECRET)
     throw new Error("PRODUCTION_LINE_SECRET_MISSING");
+  if (!/^U[a-f\d]{32}$/.test(env.ROOT_ADMIN_LINE_SUBJECT ?? ""))
+    throw new Error("PRODUCTION_ROOT_SUBJECT_REQUIRED");
   if (!/^[a-f\d]{40}$/.test(env.GITHUB_SHA ?? ""))
     throw new Error("PRODUCTION_RELEASE_SHA_REQUIRED");
   return {
