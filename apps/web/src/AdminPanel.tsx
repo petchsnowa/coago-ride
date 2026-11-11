@@ -60,7 +60,7 @@ function PrivateAdmin({
   onRole: (root: boolean) => void;
   onChange: () => void;
 }) {
-  const [role, setRole] = useState<"root" | "user" | null>(null),
+  const [role, setRole] = useState<"root" | "admin" | "user" | null>(null),
     [roleError, setRoleError] = useState(false),
     [tab, setTab] = useState<Tab>("overview"),
     [items, setItems] = useState<
@@ -74,11 +74,12 @@ function PrivateAdmin({
     [error, setError] = useState(""),
     [reason, setReason] = useState(""),
     [confirm, setConfirm] = useState<{
-      kind: "user" | "trip";
+      kind: "user" | "trip" | "role";
       id: string;
       name: string;
       version: number;
       status?: "active" | "suspended";
+      role?: "user" | "admin";
     } | null>(null),
     [confirmSettings, setConfirmSettings] = useState(false);
   const controller = useRef<AbortController | null>(null),
@@ -126,7 +127,7 @@ function PrivateAdmin({
         if (current) {
           const next = adminRoleSchema.parse(data).role;
           setRole(next);
-          onRole(next === "root");
+          onRole(next !== "user");
         }
       })
       .catch(() => {
@@ -181,7 +182,7 @@ function PrivateAdmin({
     }
   }
   useEffect(() => {
-    if (role === "root") void load();
+    if (role === "root" || role === "admin") void load();
     return () => {
       ++sequence.current;
     };
@@ -193,14 +194,20 @@ function PrivateAdmin({
     try {
       if (confirm)
         await api(
-          confirm.kind === "user"
-            ? `/users/${confirm.id}/status`
-            : `/trips/${confirm.id}/cancel`,
-          confirm.kind === "user" ? "PUT" : "POST",
+          confirm.kind === "role"
+            ? `/users/${confirm.id}/role`
+            : confirm.kind === "user"
+              ? `/users/${confirm.id}/status`
+              : `/trips/${confirm.id}/cancel`,
+          confirm.kind !== "trip" ? "PUT" : "POST",
           {
             version: confirm.version,
             reason: reason.trim(),
-            ...(confirm.kind === "user" ? { status: confirm.status } : {}),
+            ...(confirm.kind === "user"
+              ? { status: confirm.status }
+              : confirm.kind === "role"
+                ? { role: confirm.role }
+                : {}),
           },
         );
       else if (confirmSettings && settings)
@@ -231,7 +238,7 @@ function PrivateAdmin({
         </button>
       </section>
     );
-  if (role !== "root") return null;
+  if (role !== "root" && role !== "admin") return null;
   const kpis: Record<string, string> = {
     users: "ผู้ใช้ทั้งหมด",
     suspended: "ผู้ใช้ถูกระงับ",
@@ -246,23 +253,29 @@ function PrivateAdmin({
     user_activated: "คืนสิทธิ์ผู้ใช้",
     trip_cancelled: "ยกเลิกเที่ยวโดยผู้ดูแล",
     settings_changed: "เปลี่ยนการเปิดบริการ",
+    admin_granted: "แต่งตั้ง Admin",
+    admin_revoked: "ถอนสิทธิ์ Admin",
   };
   return (
     <section className="admin-panel" aria-labelledby="admin-title">
-      <p className="eyebrow">สำหรับบัญชีเจ้าของเท่านั้น</p>
-      <h2 id="admin-title">Root Admin</h2>
+      <p className="eyebrow">
+        {role === "root" ? "ผู้ดูแลสูงสุด" : "ผู้ดูแลระบบ"}
+      </p>
+      <h2 id="admin-title">{role === "root" ? "Root Admin" : "Admin"}</h2>
       <div className="admin-tabs">
-        {(Object.keys(labels) as Tab[]).map((key) => (
-          <button
-            key={key}
-            className="secondary"
-            aria-pressed={tab === key}
-            disabled={busy}
-            onClick={() => setTab(key)}
-          >
-            {labels[key]}
-          </button>
-        ))}
+        {(Object.keys(labels) as Tab[])
+          .filter((key) => role === "root" || key !== "settings")
+          .map((key) => (
+            <button
+              key={key}
+              className="secondary"
+              aria-pressed={tab === key}
+              disabled={busy}
+              onClick={() => setTab(key)}
+            >
+              {labels[key]}
+            </button>
+          ))}
         <button
           className="secondary"
           disabled={busy || loading}
@@ -337,9 +350,15 @@ function PrivateAdmin({
         >
           <p>
             {confirm
-              ? `${confirm.kind === "trip" ? "ยกเลิกเที่ยว" : confirm.status === "suspended" ? "ระงับผู้ใช้" : "คืนสิทธิ์ผู้ใช้"}: ${confirm.name}`
+              ? `${confirm.kind === "role" ? (confirm.role === "admin" ? "แต่งตั้ง Admin" : "ถอนสิทธิ์ Admin") : confirm.kind === "trip" ? "ยกเลิกเที่ยว" : confirm.status === "suspended" ? "ระงับผู้ใช้" : "คืนสิทธิ์ผู้ใช้"}: ${confirm.name}`
               : `ยืนยันบริการ ${settings?.serviceOpen ? "เปิด" : "ปิด"} · สมาชิกใหม่ ${settings?.registrationsOpen ? "เปิด" : "ปิด"}`}
           </p>
+          {confirm?.kind === "role" && (
+            <p>
+              ระบบจะออกจากระบบทุกเซสชันของบัญชีนี้
+              ต้องเข้าสู่ระบบใหม่หลังเปลี่ยนสิทธิ์
+            </p>
+          )}
           {confirm?.kind === "trip" && (
             <p>คำขอที่ยังใช้งานจะถูกยกเลิก และคืนจำนวนที่นั่งที่ตอบรับแล้ว</p>
           )}
@@ -377,35 +396,65 @@ function PrivateAdmin({
                   <>
                     <h3>
                       {user.displayName}{" "}
-                      {user.isRoot && <span className="badge">Root Admin</span>}
+                      {user.isRoot ? (
+                        <span className="badge">Root Admin</span>
+                      ) : user.role === "admin" ? (
+                        <span className="badge">Admin</span>
+                      ) : null}
                     </h3>
                     <p>
                       {user.status === "active" ? "ใช้งานได้" : "ถูกระงับ"} ·
                       สมัคร {time(user.createdAt)}
                     </p>
                     <p className="field-help">รหัสบัญชี {user.id}</p>
-                    {!user.isRoot && (
-                      <button
-                        className="secondary"
-                        disabled={busy || loading}
-                        onClick={() => {
-                          setConfirm({
-                            kind: "user",
-                            id: user.id,
-                            name: user.displayName,
-                            version: user.version,
-                            status:
-                              user.status === "active" ? "suspended" : "active",
-                          });
-                          setConfirmSettings(false);
-                          setReason("");
-                        }}
-                      >
-                        {user.status === "active"
-                          ? "ระงับผู้ใช้"
-                          : "คืนสิทธิ์ผู้ใช้"}
-                      </button>
-                    )}
+                    {role === "root" &&
+                      !user.isRoot &&
+                      (user.role === "admin" || user.status === "active") && (
+                        <button
+                          className="secondary"
+                          disabled={busy || loading}
+                          onClick={() => {
+                            setConfirm({
+                              kind: "role",
+                              id: user.id,
+                              name: user.displayName,
+                              version: user.version,
+                              role: user.role === "admin" ? "user" : "admin",
+                            });
+                            setConfirmSettings(false);
+                            setReason("");
+                          }}
+                        >
+                          {user.role === "admin"
+                            ? "ถอนสิทธิ์ Admin"
+                            : "แต่งตั้ง Admin"}
+                        </button>
+                      )}
+                    {!user.isRoot &&
+                      (role === "root" || user.role !== "admin") && (
+                        <button
+                          className="secondary"
+                          disabled={busy || loading}
+                          onClick={() => {
+                            setConfirm({
+                              kind: "user",
+                              id: user.id,
+                              name: user.displayName,
+                              version: user.version,
+                              status:
+                                user.status === "active"
+                                  ? "suspended"
+                                  : "active",
+                            });
+                            setConfirmSettings(false);
+                            setReason("");
+                          }}
+                        >
+                          {user.status === "active"
+                            ? "ระงับผู้ใช้"
+                            : "คืนสิทธิ์ผู้ใช้"}
+                        </button>
+                      )}
                   </>
                 );
               })()}

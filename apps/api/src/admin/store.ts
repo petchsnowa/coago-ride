@@ -17,6 +17,12 @@ export class AdminError extends Error {
   }
 }
 export interface AdminStore {
+  setRole(
+    actor: string,
+    id: string,
+    input: { role: "user" | "admin"; version: number; reason: string },
+    now: Date,
+  ): Promise<void>;
   overview(actor: string): Promise<Record<string, number>>;
   list(
     actor: string,
@@ -42,17 +48,18 @@ export interface AdminStore {
     now: Date,
   ): Promise<SiteSettings>;
 }
-async function assertRoot(
+async function assertManager(
   tx: TripTransaction,
   actor: string,
   subject?: string,
+  rootOnly = false,
 ) {
   if (!subject) throw new AdminError("forbidden");
   await tx.execute(
     sql`SELECT pg_advisory_xact_lock(hashtextextended(${"admin:" + actor},0))`,
   );
   const result = await tx.execute(
-    sql`SELECT u.id FROM users u JOIN external_identities i ON i.user_id=u.id WHERE u.id=${actor} AND u.status='active' AND i.provider='line' AND i.subject=${subject}`,
+    sql`SELECT u.id FROM users u JOIN external_identities i ON i.user_id=u.id WHERE u.id=${actor} AND u.status='active' AND i.provider='line' AND (i.subject=${subject} OR (u.role='admin' AND ${!rootOnly}))`,
   );
   if (result.rowCount !== 1) throw new AdminError("forbidden");
 }
@@ -66,28 +73,93 @@ async function audit(
   details: Record<string, unknown>,
   now: Date,
 ) {
-  await tx
-    .insert(adminAudit)
-    .values({
-      id: crypto.randomUUID(),
-      actorId: actor,
-      action,
-      targetType,
-      targetId,
-      reason,
-      details,
-      createdAt: now,
-    });
+  await tx.insert(adminAudit).values({
+    id: crypto.randomUUID(),
+    actorId: actor,
+    action,
+    targetType,
+    targetId,
+    reason,
+    details,
+    createdAt: now,
+  });
 }
 export function postgresAdminStore(url: string, subject?: string): AdminStore {
-  const work = <T>(actor: string, fn: (tx: TripTransaction) => Promise<T>) =>
+  const work = <T>(
+    actor: string,
+    fn: (tx: TripTransaction) => Promise<T>,
+    rootOnly = false,
+  ) =>
     withDatabase(url, (db) =>
       db.transaction(async (tx) => {
-        await assertRoot(tx, actor, subject);
+        await assertManager(tx, actor, subject, rootOnly);
         return fn(tx);
       }),
     );
+  async function target(tx: TripTransaction, actor: string, id: string) {
+    const root =
+      (
+        await tx.execute(
+          sql`SELECT 1 FROM external_identities WHERE user_id=${actor} AND provider='line' AND subject=${subject!}`,
+        )
+      ).rowCount === 1;
+    const initial = (
+      await tx.execute(sql`SELECT role FROM users WHERE id=${id}`)
+    ).rows[0];
+    if (!root && initial?.role === "admin") throw new AdminError("forbidden");
+    const isRoot =
+      (
+        await tx.execute(
+          sql`SELECT 1 FROM external_identities WHERE user_id=${id} AND provider='line' AND subject=${subject!}`,
+        )
+      ).rowCount === 1;
+    if (isRoot) throw new AdminError("root_protected");
+    if (root && id !== actor)
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${"admin:" + id},0))`,
+      );
+    const row = (
+      await tx.execute(
+        sql`SELECT status,status_version,role,EXISTS(SELECT 1 FROM external_identities WHERE user_id=${id} AND provider='line') AS has_identity FROM users WHERE id=${id} FOR UPDATE`,
+      )
+    ).rows[0];
+    if (!row) throw new AdminError("not_found");
+    if (!root && row.role === "admin") throw new AdminError("forbidden");
+    return row;
+  }
   return {
+    setRole(actor, id, input, now) {
+      return work(
+        actor,
+        async (tx) => {
+          const row = await target(tx, actor, id);
+          if (row.status_version !== input.version)
+            throw new AdminError("conflict");
+          if (row.role === input.role) return;
+          if (
+            input.role === "admin" &&
+            (row.status !== "active" || !row.has_identity)
+          )
+            throw new AdminError("conflict");
+          await tx
+            .update(users)
+            .set({ role: input.role, statusVersion: input.version + 1 })
+            .where(eq(users.id, id));
+          await tx.delete(authSessions).where(eq(authSessions.userId, id));
+          await audit(
+            tx,
+            actor,
+            input.role === "admin" ? "admin_granted" : "admin_revoked",
+            "user",
+            id,
+            input.reason,
+            { before: row.role, after: input.role },
+            now,
+          );
+        },
+        true,
+      );
+    },
     overview(actor) {
       return work(
         actor,
@@ -110,7 +182,7 @@ export function postgresAdminStore(url: string, subject?: string): AdminStore {
           : sql``;
         let query;
         if (kind === "users")
-          query = sql`SELECT t.id,t.display_name AS "displayName",t.status,t.status_version AS version,t.created_at AS "createdAt",EXISTS(SELECT 1 FROM external_identities i WHERE i.user_id=t.id AND i.provider='line' AND i.subject=${subject!}) AS "isRoot" FROM users t WHERE true ${after} ORDER BY t.created_at DESC,t.id DESC LIMIT 21`;
+          query = sql`SELECT t.id,t.display_name AS "displayName",t.status,t.role,t.status_version AS version,t.created_at AS "createdAt",EXISTS(SELECT 1 FROM external_identities i WHERE i.user_id=t.id AND i.provider='line' AND i.subject=${subject!}) AS "isRoot" FROM users t WHERE true ${after} ORDER BY t.created_at DESC,t.id DESC LIMIT 21`;
         else if (kind === "trips")
           query = sql`SELECT t.id,t.owner_id AS "ownerId",u.display_name AS "ownerName",t.origin_province AS "originProvince",t.destination_province AS "destinationProvince",t.departure_at AS "departureAt",t.status,t.version,t.seats_offered AS seats,t.seats_booked AS "bookedSeats",t.created_at AS "createdAt" FROM trips t JOIN users u ON u.id=t.owner_id WHERE true ${after} ORDER BY t.created_at DESC,t.id DESC LIMIT 21`;
         else if (kind === "requests")
@@ -146,12 +218,7 @@ export function postgresAdminStore(url: string, subject?: string): AdminStore {
     },
     setUser(actor, id, input, now) {
       return work(actor, async (tx) => {
-        const result = await tx.execute(
-          sql`SELECT u.status,u.status_version,EXISTS(SELECT 1 FROM external_identities i WHERE i.user_id=u.id AND i.provider='line' AND i.subject=${subject!}) AS is_root FROM users u WHERE u.id=${id} FOR UPDATE`,
-        );
-        const row = result.rows[0];
-        if (!row) throw new AdminError("not_found");
-        if (row.is_root) throw new AdminError("root_protected");
+        const row = await target(tx, actor, id);
         if (row.status_version !== input.version)
           throw new AdminError("conflict");
         if (row.status === input.status) return;
@@ -196,64 +263,72 @@ export function postgresAdminStore(url: string, subject?: string): AdminStore {
       });
     },
     settings(actor) {
-      return work(actor, async (tx) => {
-        const [r] = await tx
-          .select()
-          .from(siteSettings)
-          .where(eq(siteSettings.id, "site"));
-        if (!r) throw new Error("SITE_SETTINGS_MISSING");
-        return siteSettingsSchema.parse({
-          serviceOpen: r.serviceOpen,
-          registrationsOpen: r.registrationsOpen,
-          version: r.version,
-        });
-      });
+      return work(
+        actor,
+        async (tx) => {
+          const [r] = await tx
+            .select()
+            .from(siteSettings)
+            .where(eq(siteSettings.id, "site"));
+          if (!r) throw new Error("SITE_SETTINGS_MISSING");
+          return siteSettingsSchema.parse({
+            serviceOpen: r.serviceOpen,
+            registrationsOpen: r.registrationsOpen,
+            version: r.version,
+          });
+        },
+        true,
+      );
     },
     setSettings(actor, input, now) {
-      return work(actor, async (tx) => {
-        const [before] = await tx
-          .select()
-          .from(siteSettings)
-          .where(eq(siteSettings.id, "site"))
-          .for("update");
-        if (!before || before.version !== input.version)
-          throw new AdminError("conflict");
-        if (
-          before.serviceOpen === input.serviceOpen &&
-          before.registrationsOpen === input.registrationsOpen
-        )
-          return siteSettingsSchema.parse({
+      return work(
+        actor,
+        async (tx) => {
+          const [before] = await tx
+            .select()
+            .from(siteSettings)
+            .where(eq(siteSettings.id, "site"))
+            .for("update");
+          if (!before || before.version !== input.version)
+            throw new AdminError("conflict");
+          if (
+            before.serviceOpen === input.serviceOpen &&
+            before.registrationsOpen === input.registrationsOpen
+          )
+            return siteSettingsSchema.parse({
+              serviceOpen: input.serviceOpen,
+              registrationsOpen: input.registrationsOpen,
+              version: input.version,
+            });
+          const next = {
             serviceOpen: input.serviceOpen,
             registrationsOpen: input.registrationsOpen,
-            version: input.version,
-          });
-        const next = {
-          serviceOpen: input.serviceOpen,
-          registrationsOpen: input.registrationsOpen,
-          version: input.version + 1,
-        };
-        await tx
-          .update(siteSettings)
-          .set({ ...next, updatedAt: now })
-          .where(eq(siteSettings.id, "site"));
-        await audit(
-          tx,
-          actor,
-          "settings_changed",
-          "settings",
-          "site",
-          input.reason,
-          {
-            before: {
-              serviceOpen: before.serviceOpen,
-              registrationsOpen: before.registrationsOpen,
+            version: input.version + 1,
+          };
+          await tx
+            .update(siteSettings)
+            .set({ ...next, updatedAt: now })
+            .where(eq(siteSettings.id, "site"));
+          await audit(
+            tx,
+            actor,
+            "settings_changed",
+            "settings",
+            "site",
+            input.reason,
+            {
+              before: {
+                serviceOpen: before.serviceOpen,
+                registrationsOpen: before.registrationsOpen,
+              },
+              after: next,
             },
-            after: next,
-          },
-          now,
-        );
-        return next;
-      });
+            now,
+          );
+          return next;
+        },
+        true,
+      );
     },
   };
 }

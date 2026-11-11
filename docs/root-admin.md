@@ -1,6 +1,6 @@
 # Root Admin ก่อนเปิด COAGO
 
-ขอบเขตที่เจ้าของยืนยัน: ดูภาพรวม ผู้ใช้/ประกาศเที่ยว คำขอร่วมทาง เปิด–ปิดบริการและสมาชิกใหม่ และประวัติการจัดการ ผู้ดูแลสูงสุดคือบัญชี LINE ของเจ้าของเพียงบัญชีเดียว ไม่มีระบบเพิ่มผู้ดูแลคนอื่นในรุ่นนี้
+ขอบเขตที่เจ้าของยืนยัน: ดูภาพรวม ผู้ใช้/ประกาศเที่ยว คำขอร่วมทาง เปิด–ปิดบริการและสมาชิกใหม่ และประวัติการจัดการ ผู้ดูแลสูงสุดคือบัญชี LINE ของเจ้าของเพียงบัญชีเดียว Root แต่งตั้งและจัดการบทบาท Admin ได้ตามหัวข้อ Root / Admin / User ด้านล่าง
 
 ## สิทธิ์และพฤติกรรม
 
@@ -30,7 +30,7 @@
 
 ## Hosting ฟรีบน Cloudflare
 
-ใช้ Workers static assets แบบ asset-first; เฉพาะ /api, /api/*, /health, /health/* เรียก Worker; static security headers มาจาก apps/web/public/_headers. ไม่ต้องใช้ server1.2.252.50 ไม่เพิ่ม KV/R2/Queues/บริการที่เสียเงิน
+ใช้ Workers static assets แบบ asset-first; เฉพาะ /api, /api/_, /health, /health/_ เรียก Worker; static security headers มาจาก apps/web/public/_headers. ไม่ต้องใช้ server1.2.252.50 ไม่เพิ่ม KV/R2/Queues/บริการที่เสียเงิน
 
 อ้างอิงเอกสาร Cloudflare ที่อ่าน 11พ.ย.2026: [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) Free100,000 Worker requests/วัน, CPU10ms/invocation; static asset requestsฟรีไม่จำกัด. [Hyperdrive pricing](https://developers.cloudflare.com/hyperdrive/platform/pricing/) Free100,000 database statements/วัน reset00:00UTC (07:00ไทย); ถึง quotaอาจตอบerror ไม่อัปเกรด Paidเอง. Admin reads/transactionsและauthนับใช้quotaด้วย ไม่มี polling. ไม่รับรองว่าจะอยู่ภายในFree quotaทุกปริมาณผู้ใช้ และยังไม่ได้วัดproductionCPUหรือยืนยันbillingplanของบัญชีจริงในงานนี้
 
@@ -41,3 +41,28 @@ Neon เป็นฐานข้อมูลแยก มีFree quotaของ 
 หลังเจ้าของขอแยกหน้า: `/` เป็นหน้าผู้ใช้เท่านั้น ไม่ mount/fetch AdminPanel แม้เป็นบัญชี Root และไม่ bypass maintenance ด้วยสิทธิ์ Root ในหน้าผู้ใช้. `/admin` เป็นหน้าผู้ดูแลแยก ใช้ session เดียวกันและตรวจสิทธิ์ API ทุกครั้ง ไม่แสดง search/ประกาศเที่ยวของตน/คำขอของตนในหน้านี้. สมาชิกทั่วไปเห็นข้อความไม่มีสิทธิ์และลิงก์กลับหน้าผู้ใช้; anonymous ต้อง login. หาก LINE login กลับ `/` ให้เปิด `/admin` อีกครั้ง. โหลด admin UI เป็น lazy chunk แยกจากหน้าหลัก ไม่เพิ่มโดเมน บริการ หรือ migration.
 
 นำรุ่นแยกหน้านี้ขึ้น Worker ที่ผูก canonical แล้ว: ตั้ง service/registration closed ก่อน แล้วใช้ Prepare production Worker operation=`maintenance_update` จาก main หลัง merge; `prepare` จะปฏิเสธ canonical ที่กำลังให้บริการแอปอยู่ตาม guard เดิม.
+
+## Root / Admin / User (ขอบเขตใหม่ตามคำสั่งเจ้าของ)
+
+ส่วนนี้แทนข้อจำกัดรุ่นแรกที่มี Root เพียงบทบาทเดียว Root ยังผูกกับ verified LINE subject ใน secret เท่านั้น ส่วน users.role เก็บได้แค่ user/admin ไม่มีค่า root และไม่มี API เปลี่ยนหรือแต่งตั้ง Root
+
+| งาน                                           | Root   | Admin                | User                        |
+| --------------------------------------------- | ------ | -------------------- | --------------------------- |
+| ภาพรวม/ดูผู้ใช้ เที่ยว คำขอ และประวัติผู้ดูแล | ได้    | ได้                  | ไม่ได้                      |
+| ระงับ/คืนสิทธิ์ผู้ใช้ทั่วไป ยกเลิกเที่ยวอนาคต | ได้    | ได้                  | เฉพาะเที่ยวตนตาม API ผู้ใช้ |
+| แต่งตั้ง/ถอนสิทธิ์ Admin                      | ได้    | ไม่ได้               | ไม่ได้                      |
+| ระงับ/คืนสิทธิ์ Admin คนใดก็ได้               | ได้    | ไม่ได้ แม้บัญชีตนเอง | ไม่ได้                      |
+| เปิด–ปิดบริการ/รับสมาชิกใหม่                  | ได้    | ไม่ได้               | ไม่ได้                      |
+| แก้ไข/ระงับ/ถอนสิทธิ์ Root ผ่านหน้าเว็บ       | ไม่ได้ | ไม่ได้               | ไม่ได้                      |
+
+Root เปิด /admin → ผู้ใช้ เลือกสมาชิกที่เคย login ด้วย LINE แล้วและมีสถานะ active → แต่งตั้ง Admin → ใส่เหตุผลและยืนยัน. ถอนสิทธิ์ Admin และระงับ/คืนสิทธิ์บัญชี Admin ใช้รายการเดียวกัน. ไม่ hard-delete บัญชีหรือประวัติ และไม่เปลี่ยนข้อมูล LINE profile. แต่ละรายการตรวจ version ล่าสุด และบันทึกผู้ดำเนินการ เหตุผล ก่อน/หลังใน audit
+
+การเปลี่ยน role หรือระงับบัญชีเพิกถอนทุก session ใน transaction เดียวกับ audit; ผู้ได้รับแต่งตั้งต้อง login ใหม่. Backend ตรวจ role/status ใหม่ทุกคำสั่งและใช้ advisory lock ของ actor ให้การถอนสิทธิ์/ระงับไม่ชนกับ moderation ที่กำลังทำงาน ไม่อาศัยการซ่อนปุ่มใน UI. Admin ที่ถูกถอนสิทธิ์จะเรียก Admin API ต่อไม่ได้
+
+หน้าผู้ใช้ `/` ยังแยกจาก `/admin` ตามเดิม ทั้ง Root และ Admin ใช้หน้า /admin แต่เห็นเครื่องมือตามสิทธิ์ Root ไม่มี API แต่งตั้งจาก LINE ID ที่ผู้ใช้พิมพ์เองหรือ first-user promotion
+
+### นำรุ่น role ขึ้นจริง
+
+Migration0009 เพิ่ม users.role default=user และขยาย audit action โดยไม่เปลี่ยน Root secret/LINE/DNS. Production ปัจจุบันมี9 migrations ต้องใช้ Root Admin schema upgrade workflow check ก่อน แล้วสำรอง/ตรวจความสามารถ restore ของ Neon. ถ้าฐานมีผู้ใช้/trips ต้อง review ก่อนเลือก allow_existing_data=true แล้วรัน upgrade (baseline7หรือ9→10). ทุกข้อมูลและsite flagsคงอยู่; ไม่มีการแต่งตั้ง Admin อัตโนมัติ. จากนั้น service/registrationต้องclosed และใช้ Prepare production Worker → maintenance_update. ยังไม่เปิดบริการจากการ merge
+
+Manual acceptance: Root แต่งตั้งบัญชี LINE ทดสอบ ให้ login ใหม่เห็น Admin ไม่มีสวิตช์บริการ/ปุ่มแต่งตั้ง ตรวจ adminจัดการผู้ใช้ธรรมดาได้ แต่จัดการRoot/แอดมินด้วยกันไม่ได้ ทั้ง UI/API. RootระงับบัญชีAdminตรวจsessionเก่าใช้ไม่ได้ คืนสิทธิ์แล้วต้องloginใหม่ ถอนroleตรวจเข้าหน้าadminไม่ได้ และ auditมีทุกขั้น. ใช้บัญชีทดสอบที่ระบุชัดและไม่แต่งตั้งบุคคลโดยเดาชื่อ

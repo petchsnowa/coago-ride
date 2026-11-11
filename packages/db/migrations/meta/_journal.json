@@ -64,6 +64,13 @@
       "when": 1794372075601,
       "tag": "0008_ancient_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794382047544,
+      "tag": "0009_chief_dark_beast",
+      "breakpoints": true
     }
   ]
 }

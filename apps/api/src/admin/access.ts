@@ -35,3 +35,15 @@ export async function isRoot(url: string, actor: string, subject?: string) {
       ).rowCount === 1,
   );
 }
+
+export async function isAdmin(url: string, actor: string) {
+  return withDatabase(
+    url,
+    async (db) =>
+      (
+        await db.execute(
+          sql`SELECT 1 FROM users u WHERE u.id=${actor} AND u.status='active' AND u.role='admin' AND EXISTS(SELECT 1 FROM external_identities i WHERE i.user_id=u.id AND i.provider='line')`,
+        )
+      ).rowCount === 1,
+  );
+}

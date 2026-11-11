@@ -68,7 +68,7 @@ try {
   );
   const result = await upgradeAdminSchema(client, { allowExistingData: true });
   assert.equal(result.status, "upgraded");
-  assert.equal(result.migrations, 9);
+  assert.equal(result.migrations, 10);
   assert.equal(result.appTables, 10);
   assert.equal(result.settings.service_open, false);
   assert.equal(result.settings.registrations_open, false);
@@ -92,8 +92,46 @@ try {
     upgradeAdminSchema(client),
     /ADMIN_MIGRATION_HISTORY_MISMATCH/,
   );
+  const nine = join(folder, "nine");
+  await cp("packages/db/migrations", nine, { recursive: true });
+  const nineJournal = JSON.parse(
+    await readFile(join(nine, "meta/_journal.json"), "utf8"),
+  );
+  nineJournal.entries = nineJournal.entries.filter(
+    (e: { idx: number }) => e.idx < 9,
+  );
+  await writeFile(
+    join(nine, "meta/_journal.json"),
+    JSON.stringify(nineJournal),
+  );
+  // Only this randomly named disposable fixture database is reset.
+  await client.query(
+    "DROP SCHEMA public CASCADE; DROP SCHEMA drizzle CASCADE; CREATE SCHEMA public",
+  );
+  await migrate(drizzle(client), { migrationsFolder: nine });
+  await client.query(
+    "INSERT INTO users(id,display_name) VALUES($1,'Existing Root owner')",
+    [id],
+  );
+  await client.query("UPDATE site_settings SET service_open=true,version=4");
+  await assert.rejects(
+    upgradeAdminSchema(client),
+    /ADMIN_EXISTING_DATA_REVIEW_REQUIRED/,
+  );
+  const nineResult = await upgradeAdminSchema(client, {
+    allowExistingData: true,
+  });
+  assert.equal(nineResult.status, "upgraded");
+  assert.equal(nineResult.migrations, 10);
+  assert.equal(nineResult.settings.service_open, true);
+  assert.equal(nineResult.settings.version, 4);
+  assert.equal(
+    (await client.query("SELECT role FROM users WHERE id=$1", [id])).rows[0]
+      .role,
+    "user",
+  );
   console.log(
-    "PASS Root Admin upgrade: seven-to-nine migration, preserved users, default closed, failure transaction rollback, existing-data review guard, idempotency preserves settings and history drift rejection",
+    "PASS Root Admin upgrade: seven/nine-to-ten migration, preserved users, default closed, failure transaction rollback, existing-data review guard, idempotency preserves settings and history drift rejection",
   );
 } finally {
   await client.end().catch(() => {});

@@ -13,9 +13,11 @@ const session = {
   rootVerified: true,
 };
 const auth = { getSession: vi.fn(async () => session) } as unknown as AuthStore;
+const admin = vi.fn(async () => false);
 const role = vi.fn(async () => true),
   site = vi.fn(async () => settings);
 const store: AdminStore = {
+  setRole: vi.fn(async () => {}),
   overview: vi.fn(async () => ({
     users: 1,
     suspended: 0,
@@ -46,7 +48,7 @@ function app() {
     {},
     {},
     {},
-    { store: () => store, role, site },
+    { store: () => store, role, site, admin },
   );
 }
 function request(
@@ -74,6 +76,7 @@ function request(
 beforeEach(() => {
   vi.clearAllMocks();
   role.mockResolvedValue(true);
+  admin.mockResolvedValue(false);
   vi.mocked(auth.getSession).mockResolvedValue(session);
 });
 it("denies anonymous admin access", async () => {
@@ -202,4 +205,50 @@ it("requires a freshly verified root session even when identity matches", async 
   });
   expect((await request("/api/admin/users")).status).toBe(403);
   expect(store.list).not.toHaveBeenCalled();
+});
+
+it("allows admin moderation but denies role and site settings APIs", async () => {
+  role.mockResolvedValue(false);
+  admin.mockResolvedValue(true);
+  expect(await (await request("/api/admin/me")).json()).toEqual({
+    role: "admin",
+  });
+  expect((await request("/api/admin/users")).status).toBe(200);
+  expect((await request("/api/admin/settings")).status).toBe(403);
+  expect(
+    (
+      await request(`/api/admin/users/${target}/role`, "PUT", {
+        role: "admin",
+        version: 1,
+        reason: "Escalate",
+      })
+    ).status,
+  ).toBe(403);
+  expect(store.setRole).not.toHaveBeenCalled();
+});
+it("root can grant admin with version/reason and session-derived actor", async () => {
+  expect(
+    (
+      await request(`/api/admin/users/${target}/role`, "PUT", {
+        role: "admin",
+        version: 1,
+        reason: "Appoint",
+      })
+    ).status,
+  ).toBe(200);
+  expect(store.setRole).toHaveBeenCalledWith(
+    rootId,
+    target,
+    { role: "admin", version: 1, reason: "Appoint" },
+    expect.any(Date),
+  );
+  expect(
+    (
+      await request(`/api/admin/users/${target}/role`, "PUT", {
+        role: "root",
+        version: 1,
+        reason: "Escalate",
+      })
+    ).status,
+  ).toBe(400);
 });
