@@ -1,3 +1,4 @@
+import { currentAppTableCount, currentMigrationCount } from "@coago/db";
 import assert from "node:assert/strict";
 import { mkdir, writeFile, rm, appendFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -6,6 +7,7 @@ import pg from "pg";
 import { readMigrationFiles } from "drizzle-orm/migrator";
 import { probeDatabase } from "../database-readiness/probe";
 import { safeDatabaseFailure } from "../database-readiness/config";
+import { siteSettingsSchema } from "@coago/contracts";
 import { verifyHyperdrive, type HyperdriveConfig } from "./hyperdrive-policy";
 import {
   productionWorkerSettings,
@@ -31,6 +33,7 @@ async function main() {
     secret = required("LINE_CHANNEL_SECRET");
   mask(token);
   mask(secret);
+  mask(required("ROOT_ADMIN_LINE_SUBJECT"));
   mask(required("COAGO_PRODUCTION_DATABASE_URL"));
   mask(settings.origin.password);
   async function cf<T>(path: string): Promise<T> {
@@ -87,11 +90,18 @@ async function main() {
       expected = readMigrationFiles({
         migrationsFolder: "packages/db/migrations",
       });
+    const siteBefore = (
+      await client.query(
+        "SELECT service_open,registrations_open FROM site_settings WHERE id='site'",
+      )
+    ).rows[0];
+    if (!siteBefore || siteBefore.service_open || siteBefore.registrations_open)
+      throw new Error("PRODUCTION_SERVICE_MUST_BE_CLOSED");
     if (
-      schema.appTables !== 8 ||
-      schema.migrations !== 7 ||
+      schema.appTables !== currentAppTableCount ||
+      schema.migrations !== currentMigrationCount ||
       !schema.postgis ||
-      expected.length !== 7
+      expected.length !== currentMigrationCount
     )
       throw new Error("PRODUCTION_SCHEMA_NOT_READY");
     const rows = (
@@ -141,7 +151,15 @@ async function main() {
     redirect: "manual",
     signal: AbortSignal.timeout(15000),
   });
-  if (canonical.headers.has("X-COAGO-Release"))
+  const operation = process.env.COAGO_WORKER_OPERATION ?? "prepare";
+  if (!["prepare", "maintenance_update"].includes(operation))
+    throw new Error("PRODUCTION_OPERATION_REQUIRED");
+  if (operation === "maintenance_update" && !existing)
+    throw new Error("PRODUCTION_EXISTING_WORKER_REQUIRED");
+  if (
+    canonical.headers.has("X-COAGO-Release") &&
+    operation !== "maintenance_update"
+  )
     throw new Error("PRODUCTION_CANONICAL_ALREADY_LIVE");
   await canonical.body?.cancel();
   const { subdomain } = await cf<{ subdomain: string }>("/workers/subdomain");
@@ -168,16 +186,23 @@ async function main() {
           directory: resolve("apps/web/dist"),
           binding: "ASSETS",
           not_found_handling: "single-page-application",
-          run_worker_first: true,
+          run_worker_first: ["/api", "/api/*", "/health", "/health/*"],
         },
         vars: settings.vars,
         hyperdrive: [{ binding: "HYPERDRIVE", id: productionHyperdriveId }],
       }),
       { mode: 0o600 },
     );
-    await writeFile(secrets, JSON.stringify({ LINE_CHANNEL_SECRET: secret }), {
-      mode: 0o600,
-    });
+    await writeFile(
+      secrets,
+      JSON.stringify({
+        LINE_CHANNEL_SECRET: secret,
+        ROOT_ADMIN_LINE_SUBJECT: required("ROOT_ADMIN_LINE_SUBJECT"),
+      }),
+      {
+        mode: 0o600,
+      },
+    );
     await new Promise<void>((done, reject) => {
       const child = spawn(
         "pnpm",
@@ -254,7 +279,23 @@ async function main() {
       redirect: "error",
       signal: AbortSignal.timeout(10000),
     });
-    assert.equal(publicList.status, 200);
+    const publicSite = await fetch(`${preview}/api/site`, {
+      redirect: "error",
+      signal: AbortSignal.timeout(10000),
+    });
+    assert.equal(publicSite.status, 200);
+    const policy = siteSettingsSchema.parse(await publicSite.json());
+    assert.equal(
+      policy.serviceOpen,
+      false,
+      "PRODUCTION_SERVICE_MUST_BE_CLOSED",
+    );
+    assert.equal(
+      policy.registrationsOpen,
+      false,
+      "PRODUCTION_REGISTRATION_MUST_BE_CLOSED",
+    );
+    assert.equal(publicList.status, 503);
     await publicList.body?.cancel();
     console.log(
       "PRODUCTION_WORKER_PREPARED",
@@ -272,7 +313,7 @@ async function main() {
     if (process.env.GITHUB_STEP_SUMMARY)
       await appendFile(
         process.env.GITHUB_STEP_SUMMARY,
-        `# Production Worker prepared\n\n- Preview: ${preview}\n- Canonical: ${productionOrigin}\n- Commit: ${settings.vars.RELEASE_COMMIT}\n- Hyperdrive: ${productionHyperdriveId}\n- LINE channel: ${settings.vars.LINE_CHANNEL_ID}\n\nReadiness/assets/public GET/private401 passed. Login/callback are blocked on preview before any session/flow writes. DNS/LINE Console not changed. LINE secret pairing and real login still require canonical-domain manual verification after authorized cutover. Production observability remains disabled pending a reviewed log/privacy configuration.\n`,
+        `# Production Worker prepared\n\n- Preview: ${preview}\n- Canonical: ${productionOrigin}\n- Commit: ${settings.vars.RELEASE_COMMIT}\n- Hyperdrive: ${productionHyperdriveId}\n- LINE channel: ${settings.vars.LINE_CHANNEL_ID}\n\nReadiness/assets/site flags/private401 passed; public trip access correctly returns503 while service is closed. Login/callback are blocked on preview before any session/flow writes. DNS/LINE Console not changed. LINE secret pairing and real login still require canonical-domain manual verification after authorized cutover. Production observability remains disabled pending a reviewed log/privacy configuration.\n`,
       );
   } finally {
     await rm(directory, { recursive: true, force: true });

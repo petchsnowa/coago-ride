@@ -145,3 +145,9 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 หลัง bootstrap ใช้ [Production Hyperdrive connection](.github/workflows/production-hyperdrive.yml) แบบ manual เพื่อสร้าง/pin config ใหม่และตรวจ remote preview ด้วย read-only SQL ดู [คู่มือ](docs/production-launch.md) Local runtime check คือ `pnpm test:production-hyperdrive:workers` ซึ่งใช้ JSON bindingกับฐานlocal ไม่ใช่หลักฐาน remote Hyperdrive ไม่มี deployแอป/เปลี่ยนDNSใน workflowเชื่อมฐาน
 
 [Prepare production Worker](.github/workflows/production-worker.yml) ใช้ production LINE channel/Hyperdrive ที่pinแล้วและowner marker ตรวจบนworkers.devก่อนเปลี่ยนโดเมน บนpreviewปิดlogin/private sessions/APIwritesก่อนเข้าถึงstore ยังไม่แก้DNS/LINEConsole ใช้ `pnpm test:production-worker:runtime` ตรวจguardในlocalWorkersกับฐานtestจริง ดูสถานะ/วิธีrunใน[คู่มือ](docs/production-launch.md)
+
+## Root Admin ก่อนเปิดบริการ
+
+ขอบเขตบัญชีเจ้าของ LINE, การจัดการผู้ใช้/เที่ยว/คำขอ, service/registration switches, audit, ขั้นอัปเกรดและ Free hosting อยู่ใน [docs/root-admin.md](docs/root-admin.md). เพิ่ม Environment secret `ROOT_ADMIN_LINE_SUBJECT` ใน `production`; ไม่ใช่ Channel ID และไม่ส่งค่าให้ frontend. การเปิดบริการต้องผ่าน manual acceptance ก่อน ไม่เปิดด้วยการ merge.
+
+ตรวจแยกด้วย `pnpm test:admin:integration` (ฐาน disposable + local Workers runtime) และ `pnpm test:admin:upgrade` (baseline7→9, rollback/idempotency). Browser fixture `apps/web/tests/admin.html` ใช้เฉพาะ Vite dev/Playwright ไม่ใช่ build entry และไม่อยู่ใน production dist.

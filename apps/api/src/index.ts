@@ -8,6 +8,16 @@ import { checkDatabase } from "@coago/db";
 import { liveSchema, readySchema, errorSchema } from "@coago/contracts";
 import { databaseUrl, type Bindings } from "./bindings";
 import { authRoutes, type AuthDependencies } from "./auth/routes";
+import { adminRoutes, type AdminDependencies } from "./admin/routes";
+import {
+  rootSubject,
+  accessEnforced,
+  readSiteSettings,
+  isRoot,
+} from "./admin/access";
+import { postgresAuthStore } from "./auth/store";
+import { getCookie } from "hono/cookie";
+import { hash } from "./auth/crypto";
 import { tripRoutes, type TripDependencies } from "./trips/routes";
 import {
   discoveryRoutes,
@@ -20,6 +30,7 @@ export function createApp(
   tripDependencies: Partial<TripDependencies> = {},
   discoveryDependencies: Partial<DiscoveryDependencies> = {},
   requestDependencies: Partial<RideRequestDependencies> = {},
+  adminDependencies: Partial<AdminDependencies> = {},
 ) {
   const app = new Hono<{ Bindings: Bindings }>();
   app.use("*", async (c, next) => {
@@ -64,8 +75,52 @@ export function createApp(
         !["GET", "HEAD"].includes(c.req.method)
       )
         return c.json({ error: "canonical_origin_required" }, 403);
-      if (/^\/api\/(?:trips|ride-requests)(?:\/|$)/.test(c.req.path))
+      if (/^\/api\/(?:trips|ride-requests|admin)(?:\/|$)/.test(c.req.path))
         return c.json({ error: "unauthorized" }, 401);
+    }
+    await next();
+  });
+  app.get("/api/site", async (c) => {
+    c.header("Cache-Control", "no-store");
+    try {
+      return c.json(
+        await (adminDependencies.site ?? readSiteSettings)(databaseUrl(c.env)),
+      );
+    } catch {
+      return c.json({ error: "service_unavailable" }, 503);
+    }
+  });
+  app.use("/api/*", async (c, next) => {
+    if (
+      accessEnforced(c.env) &&
+      /^\/api\/(?:trips|ride-requests|discovery)(?:\/|$)/.test(c.req.path)
+    ) {
+      c.header("Cache-Control", "no-store");
+      try {
+        const settings = await (adminDependencies.site ?? readSiteSettings)(
+          databaseUrl(c.env),
+        );
+        if (!settings.serviceOpen) {
+          const token = getCookie(c, "__Host-coago_session");
+          const session =
+            token && /^[a-f\d]{64}$/.test(token)
+              ? await (authDependencies.store ?? postgresAuthStore)(
+                  databaseUrl(c.env),
+                ).getSession(await hash(token), new Date())
+              : undefined;
+          if (
+            !session?.rootVerified ||
+            !(await (adminDependencies.role ?? isRoot)(
+              databaseUrl(c.env),
+              session.user.id,
+              rootSubject(c.env),
+            ))
+          )
+            return c.json({ error: "service_closed" }, 503);
+        }
+      } catch {
+        return c.json({ error: "service_unavailable" }, 503);
+      }
     }
     await next();
   });
@@ -79,6 +134,13 @@ export function createApp(
     }
   });
   app.route("/api/auth", authRoutes(authDependencies));
+  app.route(
+    "/api/admin",
+    adminRoutes({
+      ...adminDependencies,
+      ...(authDependencies.store ? { authStore: authDependencies.store } : {}),
+    }),
+  );
   app.route(
     "/api/ride-requests",
     rideRequestRoutes({

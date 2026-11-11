@@ -1,3 +1,4 @@
+import { currentAppTableCount, currentMigrationCount } from "@coago/db";
 import assert from "node:assert/strict";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -60,8 +61,8 @@ try {
   });
   assert.equal(response.status, 200);
   const data = (await response.json()) as Record<string, unknown>;
-  assert.equal(data.appTables, 8);
-  assert.equal(data.migrations, 7);
+  assert.equal(data.appTables, currentAppTableCount);
+  assert.equal(data.migrations, currentMigrationCount);
   assert.equal(data.srid, 4326);
   assert.equal(data.point, "POINT(100.5018 13.7563)");
   console.log(

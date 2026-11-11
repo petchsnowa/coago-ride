@@ -5,8 +5,41 @@ import { readySchema, type AuthState } from "@coago/contracts";
 import AuthPanel from "./AuthPanel";
 import TripsPanel from "./TripsPanel";
 import SearchTrips from "./SearchTrips";
+import AdminPanel from "./AdminPanel";
+import { siteSettingsSchema, type SiteSettings } from "@coago/contracts";
 export default function App() {
   const production = import.meta.env.VITE_APP_MODE === "production";
+  const adminEnabled =
+    production || import.meta.env.VITE_ADMIN_ENABLED === "true";
+  const [site, setSite] = useState<SiteSettings | null>(
+    adminEnabled
+      ? null
+      : { serviceOpen: true, registrationsOpen: true, version: 1 },
+  );
+  const [root, setRoot] = useState(false),
+    [siteRevision, setSiteRevision] = useState(0);
+  const roleChanged = useCallback((value: boolean) => setRoot(value), []);
+  const siteChanged = useCallback(() => {
+    setSiteRevision((v) => v + 1);
+    setRequestRevision((v) => v + 1);
+  }, []);
+  useEffect(() => {
+    if (!adminEnabled) return;
+    const control = new AbortController();
+    fetch("/api/site", {
+      signal: AbortSignal.any([control.signal, AbortSignal.timeout(8000)]),
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error();
+        const value = siteSettingsSchema.parse(await response.json());
+        if (!control.signal.aborted) setSite(value);
+      })
+      .catch(() => {
+        if (!control.signal.aborted) setSite(null);
+      });
+    return () => control.abort();
+  }, [adminEnabled, siteRevision]);
   const [requestRevision, setRequestRevision] = useState(0);
   const requestsChanged = useCallback(
     () => setRequestRevision((value) => value + 1),
@@ -54,18 +87,42 @@ export default function App() {
           </span>
         </div>
       </nav>
-      <SearchTrips
-        account={account}
-        onRequestChange={requestsChanged}
-        revision={requestRevision}
+      {site?.serviceOpen || root ? (
+        <SearchTrips
+          account={account}
+          onRequestChange={requestsChanged}
+          revision={requestRevision}
+        />
+      ) : (
+        <section className="site-closed" aria-labelledby="closed-title">
+          <p className="eyebrow">COAGO</p>
+          <h1 id="closed-title">กำลังเตรียมเปิดบริการ</h1>
+          <p>เรากำลังตรวจระบบให้พร้อมสำหรับการร่วมเดินทาง</p>
+          <p>ขณะนี้ยังไม่เปิดให้ประกาศเที่ยวหรือส่งคำขอ</p>
+        </section>
+      )}
+      <AuthPanel
+        onAccountChange={setAccount}
+        serviceOpen={site?.serviceOpen ?? false}
+        registrationsOpen={site?.registrationsOpen ?? false}
       />
-      <AuthPanel onAccountChange={setAccount} />
-      <RideRequestsPanel
-        account={account}
-        revision={requestRevision}
-        onChange={requestsChanged}
-      />
-      <TripsPanel account={account} revision={requestRevision} />
+      {adminEnabled && (
+        <AdminPanel
+          account={account}
+          onRole={roleChanged}
+          onChange={siteChanged}
+        />
+      )}
+      {(site?.serviceOpen || root) && (
+        <>
+          <RideRequestsPanel
+            account={account}
+            revision={requestRevision}
+            onChange={requestsChanged}
+          />
+          <TripsPanel account={account} revision={requestRevision} />
+        </>
+      )}
       <section className="system" aria-labelledby="system-title">
         <div>
           <p className="eyebrow">เริ่มต้นไปด้วยกัน</p>

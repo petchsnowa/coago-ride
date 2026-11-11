@@ -5,6 +5,7 @@ import { databaseUrl, type Bindings } from "../bindings";
 import { randomToken, hash, challenge, clientHash } from "./crypto";
 import { lineConfig, exchangeIdentity } from "./line";
 import { postgresAuthStore, type AuthStore } from "./store";
+import { rootSubject, accessEnforced } from "../admin/access";
 export type AuthDependencies = {
   store: (url: string) => AuthStore;
   identity: typeof exchangeIdentity;
@@ -114,6 +115,10 @@ export function authRoutes(overrides: Partial<AuthDependencies> = {}) {
         csrfToken,
         new Date(now.getTime() + 86400000),
         now,
+        {
+          rootSubject: rootSubject(c.env),
+          enforceAccess: accessEnforced(c.env),
+        },
       );
       const old = getCookie(c, sessionCookie);
       if (validToken(old)) await store.deleteSession(await hash(old));

@@ -1,3 +1,4 @@
+import { currentAppTableCount, currentMigrationCount } from "@coago/db";
 import { withDatabase } from "@coago/db";
 import { probeDatabase } from "../database-readiness/probe";
 type Bindings = {
@@ -26,8 +27,8 @@ export default {
           const schema = await probeDatabase(client);
           if (
             !schema.postgis ||
-            schema.appTables !== 8 ||
-            schema.migrations !== 7
+            schema.appTables !== currentAppTableCount ||
+            schema.migrations !== currentMigrationCount
           )
             throw new Error("SCHEMA_NOT_READY");
           const spatial = (

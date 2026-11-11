@@ -1,6 +1,7 @@
 import pg from "pg";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 export * from "./schema";
+export * from "./version";
 export function createClient(connectionString: string) {
   return new pg.Client({
     connectionString,
