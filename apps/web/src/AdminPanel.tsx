@@ -117,24 +117,27 @@ function PrivateAdmin({
     return data;
   }
   useEffect(() => {
+    let current = true;
     active.current = true;
+    setRoleError(false);
     controller.current = new AbortController();
     void api("/me")
       .then((data) => {
-        if (active.current) {
+        if (current) {
           const next = adminRoleSchema.parse(data).role;
           setRole(next);
           onRole(next === "root");
         }
       })
       .catch(() => {
-        if (active.current) {
+        if (current) {
           setRole("user");
           setRoleError(true);
           onRole(false);
         }
       });
     return () => {
+      current = false;
       active.current = false;
       controller.current?.abort();
       onRole(false);
