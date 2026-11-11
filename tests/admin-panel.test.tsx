@@ -143,3 +143,47 @@ it("removes private root content on logout", async () => {
     screen.queryByRole("heading", { name: "Root Admin" }),
   ).not.toBeInTheDocument();
 });
+it("admin sees operations but cannot change roles or site settings", async () => {
+  mock("admin");
+  render(
+    <AdminPanel account={account} onRole={() => {}} onChange={() => {}} />,
+  );
+  await screen.findByRole("heading", { name: "Admin" });
+  expect(
+    screen.queryByRole("button", { name: "เปิด–ปิดบริการ" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "ผู้ใช้" }));
+  await screen.findByText("Member");
+  expect(
+    screen.queryByRole("button", { name: "แต่งตั้ง Admin" }),
+  ).not.toBeInTheDocument();
+});
+it("root appointment requires a reason and sends role/version with CSRF", async () => {
+  const fetch = mock();
+  render(
+    <AdminPanel account={account} onRole={() => {}} onChange={() => {}} />,
+  );
+  await screen.findByText("ผู้ใช้ทั้งหมด");
+  fireEvent.click(screen.getByRole("button", { name: "ผู้ใช้" }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "แต่งตั้ง Admin" }),
+  );
+  expect(
+    screen.getByRole("button", { name: "ยืนยันและบันทึกประวัติ" }),
+  ).toBeDisabled();
+  fireEvent.change(screen.getByRole("textbox"), {
+    target: { value: "Trusted administrator" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "ยืนยันและบันทึกประวัติ" }),
+  );
+  await waitFor(() =>
+    expect(fetch.mock.calls.some(([p]) => p.endsWith("/role"))).toBe(true),
+  );
+  const call = fetch.mock.calls.find(([p]) => p.endsWith("/role"));
+  expect(JSON.parse(call![1]!.body as string)).toEqual({
+    role: "admin",
+    version: 1,
+    reason: "Trusted administrator",
+  });
+});

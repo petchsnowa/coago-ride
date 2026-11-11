@@ -24,7 +24,7 @@ export type SiteSettings = z.infer<typeof siteSettingsSchema>;
 const id = z.string().uuid(),
   time = z.string().datetime();
 export const adminRoleSchema = z
-  .object({ role: z.enum(["root", "user"]) })
+  .object({ role: z.enum(["root", "admin", "user"]) })
   .strict();
 export const adminOverviewSchema = z
   .object({
@@ -44,6 +44,7 @@ export const adminUserSchema = z
     version: z.number().int().positive(),
     createdAt: time,
     isRoot: z.boolean(),
+    role: z.enum(["user", "admin"]).default("user"),
   })
   .strict();
 export const adminTripSchema = z
@@ -86,6 +87,8 @@ export const adminAuditSchema = z
       "user_activated",
       "trip_cancelled",
       "settings_changed",
+      "admin_granted",
+      "admin_revoked",
     ]),
     targetType: z.enum(["user", "trip", "settings"]),
     targetId: z.string(),
@@ -124,3 +127,11 @@ export type AdminUser = z.infer<typeof adminUserSchema>;
 export type AdminTrip = z.infer<typeof adminTripSchema>;
 export type AdminRequest = z.infer<typeof adminRequestSchema>;
 export type AdminAudit = z.infer<typeof adminAuditSchema>;
+
+export const adminGrantSchema = z
+  .object({
+    role: z.enum(["user", "admin"]),
+    version: z.number().int().positive(),
+    reason: adminReasonSchema,
+  })
+  .strict();

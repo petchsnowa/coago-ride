@@ -21,7 +21,7 @@ export default function AdminPage() {
       <header>
         <p className="eyebrow">พื้นที่จัดการระบบ</p>
         <h1>ผู้ดูแล COAGO</h1>
-        <p>สำหรับบัญชีเจ้าของที่ได้รับสิทธิ์ Root Admin</p>
+        <p>สำหรับ Root และ Admin ที่ได้รับสิทธิ์</p>
       </header>
       <AuthPanel
         onAccountChange={accountChanged}
@@ -34,7 +34,7 @@ export default function AdminPage() {
       )}
       {account?.user && role === false && (
         <p role="alert">
-          บัญชีนี้ไม่มีสิทธิ์เข้าระบบผู้ดูแล กรุณาใช้บัญชีเจ้าของ
+          บัญชีนี้ไม่มีสิทธิ์เข้าระบบผู้ดูแล กรุณาใช้บัญชีที่ได้รับสิทธิ์
           หรือกลับไปหน้าผู้ใช้
         </p>
       )}

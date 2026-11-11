@@ -26,6 +26,7 @@ export const users = pgTable(
     id: uuid("id").primaryKey(),
     displayName: text("display_name").notNull(),
     status: text("status").notNull().default("active"),
+    role: text("role").notNull().default("user"),
     statusVersion: integer("status_version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -33,6 +34,7 @@ export const users = pgTable(
   },
   (t) => [
     check("users_status", sql`${t.status} in ('active','suspended')`),
+    check("users_role", sql`${t.role} in ('user','admin')`),
     check("users_status_version", sql`${t.statusVersion}>0`),
   ],
 );
@@ -76,7 +78,7 @@ export const adminAudit = pgTable(
     check("admin_audit_reason", sql`length(${t.reason})<=300`),
     check(
       "admin_audit_action",
-      sql`${t.action} in ('root_bootstrap','user_suspended','user_activated','trip_cancelled','settings_changed')`,
+      sql`${t.action} in ('root_bootstrap','user_suspended','user_activated','trip_cancelled','settings_changed','admin_granted','admin_revoked')`,
     ),
     check(
       "admin_audit_target",

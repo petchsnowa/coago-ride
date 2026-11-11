@@ -4,6 +4,7 @@ import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
 import {
   adminUserActionSchema,
+  adminGrantSchema,
   adminSettingsActionSchema,
   adminCancelTripSchema,
   tripCursorSchema,
@@ -15,12 +16,13 @@ import { postgresAuthStore, type AuthStore, type Session } from "../auth/store";
 import { hash } from "../auth/crypto";
 import { lineConfig } from "../auth/line";
 import { TripError } from "../trips/store";
-import { isRoot, rootSubject, readSiteSettings } from "./access";
+import { isRoot, isAdmin, rootSubject, readSiteSettings } from "./access";
 import { postgresAdminStore, AdminError, type AdminStore } from "./store";
 export type AdminDependencies = {
   authStore: (url: string) => AuthStore;
   store: (url: string, subject?: string) => AdminStore;
   role: typeof isRoot;
+  admin: typeof isAdmin;
   site: typeof readSiteSettings;
   now: () => Date;
 };
@@ -29,6 +31,7 @@ export function adminRoutes(overrides: Partial<AdminDependencies> = {}) {
     authStore: postgresAuthStore,
     store: postgresAdminStore,
     role: isRoot,
+    admin: isAdmin,
     site: readSiteSettings,
     now: () => new Date(),
     ...overrides,
@@ -55,9 +58,13 @@ export function adminRoutes(overrides: Partial<AdminDependencies> = {}) {
         rootSubject(c.env),
       ));
     c.set("root", root);
+    const admin =
+      !root && (await deps.admin(databaseUrl(c.env), session.user.id));
     if (["/me", "/api/admin/me"].includes(c.req.path) && c.req.method === "GET")
-      return c.json({ role: root ? "root" : "user" });
-    if (!root) return c.json({ error: "forbidden" }, 403);
+      return c.json({ role: root ? "root" : admin ? "admin" : "user" });
+    if (!root && !admin) return c.json({ error: "forbidden" }, 403);
+    if (!root && /\/(?:settings|role)$/.test(c.req.path))
+      return c.json({ error: "forbidden" }, 403);
     if (!["GET", "HEAD"].includes(c.req.method)) {
       if (
         c.req.header("Origin") !== lineConfig(c.env).origin ||
@@ -115,6 +122,14 @@ export function adminRoutes(overrides: Partial<AdminDependencies> = {}) {
         adminLists[kind].parse(await store(c.env).list(actor(c), kind, cursor)),
       );
     });
+  app.put("/users/:id/role", async (c) => {
+    const id = z.string().uuid().safeParse(c.req.param("id")),
+      input = adminGrantSchema.safeParse(await c.req.json().catch(() => null));
+    if (!id.success || !input.success)
+      return c.json({ error: "invalid_request" }, 400);
+    await store(c.env).setRole(actor(c), id.data, input.data, deps.now());
+    return c.json({ status: "ok" });
+  });
   app.put("/users/:id/status", async (c) => {
     const id = z.string().uuid().safeParse(c.req.param("id")),
       input = adminUserActionSchema.safeParse(

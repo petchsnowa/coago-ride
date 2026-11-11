@@ -197,3 +197,7 @@ Phase 1 รวมเข้า main แล้ว งานรอบ LINE Login �
 ## Root Admin ก่อนเผยแพร่
 
 เจ้าของยืนยันขอบเขต dashboard, users/trips moderation, ride requests read, service/registration switches, audit และ LINE owner root เท่านั้น ให้ทำบน branch/PR ใหม่ ตรวจ local/CI ก่อน ไม่ merge/deploy/migrate production/เปลี่ยน DNS โดยอัตโนมัติ ย้าย static assets เป็น asset-first เพื่อ Free Workers คง default service/registration closed และห้าม first-user root. รายละเอียด docs/root-admin.md.
+
+## แยก Root และ Admin
+
+เจ้าของขอ Root แต่งตั้ง/ถอนสิทธิ์และจัดการ Admin ได้ทั้งหมด เพิ่มบทบาท admin ของสมาชิก LINE ที่ตรวจแล้ว ส่วน Root ยังเป็น secret allowlist ไม่ใช่ role ที่ตั้งผ่าน API. Admin ดูแลผู้ใช้ทั่วไป/เที่ยว/คำขอ/audit แต่จัดการRoot/แอดมินด้วยกัน/ตั้งrole/เปิดปิดบริการไม่ได้. ทุก role/status mutation ใช้version+reason+audit+sessionrevocation และตรวจ backend. เตรียม migrationใหม่/PR ไม่deployหรือmigrate production อัตโนมัติ.

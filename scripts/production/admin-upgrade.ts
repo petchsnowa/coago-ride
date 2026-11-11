@@ -10,7 +10,7 @@ export async function upgradeAdminSchema(
 ) {
   const folder = options.folder ?? "packages/db/migrations",
     expected = readMigrationFiles({ migrationsFolder: folder });
-  if (expected.length !== currentMigrationCount || currentMigrationCount !== 9)
+  if (expected.length !== currentMigrationCount || currentMigrationCount !== 10)
     throw new Error("ADMIN_MIGRATION_SET_CHANGED");
   if (
     !(await client.query("SELECT pg_try_advisory_lock(207417,6) AS locked"))
@@ -24,7 +24,7 @@ export async function upgradeAdminSchema(
       )
     ).rows;
     if (
-      ![7, 9].includes(rows.length) ||
+      ![7, 9, 10].includes(rows.length) ||
       rows.some(
         (r, i) =>
           r.hash !== expected[i].hash ||
@@ -39,14 +39,15 @@ export async function upgradeAdminSchema(
         "SELECT (SELECT count(*)::int FROM users) AS users,(SELECT count(*)::int FROM trips) AS trips,(SELECT count(*)::int FROM ride_requests) AS requests",
       )
     ).rows[0];
-    if (rows.length === 7) {
+    if (rows.length < currentMigrationCount) {
       if (
-        before.appTables !== 8 ||
-        (
-          await client.query(
-            "SELECT to_regclass('public.site_settings') AS s,to_regclass('public.admin_audit') AS a",
-          )
-        ).rows.some((r) => r.s || r.a)
+        rows.length === 7 &&
+        (before.appTables !== 8 ||
+          (
+            await client.query(
+              "SELECT to_regclass('public.site_settings') AS s,to_regclass('public.admin_audit') AS a",
+            )
+          ).rows.some((r) => r.s || r.a))
       )
         throw new Error("ADMIN_UNMANAGED_SCHEMA");
       if (
@@ -87,7 +88,8 @@ export async function upgradeAdminSchema(
     ).rows[0];
     if (!settings) throw new Error("ADMIN_SITE_SETTINGS_MISSING");
     return {
-      status: rows.length === 7 ? "upgraded" : "already_upgraded",
+      status:
+        rows.length < currentMigrationCount ? "upgraded" : "already_upgraded",
       ...after,
       settings,
       recordCounts: next,

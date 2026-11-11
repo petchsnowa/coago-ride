@@ -432,6 +432,19 @@ try {
     ).rows[0].status,
     "accepted",
   );
+  await assert.rejects(
+    store.setRole(
+      root.id,
+      passenger.id,
+      { role: "admin", version: 1, reason: "Audit rollback" },
+      now,
+    ),
+  );
+  assert.equal(
+    (await client.query("SELECT role FROM users WHERE id=$1", [passenger.id]))
+      .rows[0].role,
+    "user",
+  );
   await client.query("DROP TRIGGER fail_admin_audit_trigger ON admin_audit");
   await client.query("DROP FUNCTION fail_admin_audit()");
   const concurrentTrip = (
@@ -464,6 +477,186 @@ try {
     ).rows[0].n,
     0,
   );
+  await store.setRole(
+    root.id,
+    passenger.id,
+    { role: "admin", version: 1, reason: "Appoint trusted moderator" },
+    now,
+  );
+  await store.setRole(
+    root.id,
+    passenger.id,
+    { role: "admin", version: 2, reason: "Idempotent" },
+    now,
+  );
+  const adminToken = token(),
+    adminCsrf = token();
+  await auth.createSession(
+    { subject: passengerSubject, displayName: "Moderator" },
+    await hash(adminToken),
+    adminCsrf,
+    expires,
+    now,
+    { rootSubject, enforceAccess: true },
+  );
+  const moderatorCall = (path: string, method = "GET", body?: unknown) =>
+    app.request(
+      `https://coago.space${path}`,
+      {
+        method,
+        headers: {
+          Cookie: `__Host-coago_session=${adminToken}`,
+          Origin: "https://coago.space",
+          "X-CSRF-Token": adminCsrf,
+          "Content-Type": "application/json",
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      },
+      bindings,
+    );
+  assert.deepEqual(await (await moderatorCall("/api/admin/me")).json(), {
+    role: "admin",
+  });
+  assert.equal((await moderatorCall("/api/admin/overview")).status, 200);
+  assert.equal((await moderatorCall("/api/admin/settings")).status, 403);
+  assert.equal(
+    (
+      await moderatorCall(`/api/admin/users/${driver.id}/role`, "PUT", {
+        role: "admin",
+        version: 3,
+        reason: "Escalate",
+      })
+    ).status,
+    403,
+  );
+  await assert.rejects(
+    store.setRole(
+      passenger.id,
+      driver.id,
+      { role: "admin", version: 3, reason: "Escalate" },
+      now,
+    ),
+    /forbidden/,
+  );
+  await assert.rejects(
+    store.setUser(
+      passenger.id,
+      passenger.id,
+      { status: "suspended", version: 2, reason: "Manage peer" },
+      now,
+    ),
+    /forbidden/,
+  );
+  await assert.rejects(
+    store.setSettings(
+      passenger.id,
+      {
+        serviceOpen: true,
+        registrationsOpen: true,
+        version: 3,
+        reason: "Escalate",
+      },
+      now,
+    ),
+    /forbidden/,
+  );
+  await assert.rejects(
+    store.setRole(
+      root.id,
+      root.id,
+      { role: "admin", version: 1, reason: "Root guard" },
+      now,
+    ),
+    /root_protected/,
+  );
+  await assert.rejects(
+    store.setRole(
+      root.id,
+      driver.id,
+      { role: "admin", version: 1, reason: "Stale" },
+      now,
+    ),
+    /conflict/,
+  );
+  await store.setUser(
+    passenger.id,
+    driver.id,
+    { status: "suspended", version: 3, reason: "Moderate ordinary user" },
+    now,
+  );
+  await store.setUser(
+    passenger.id,
+    driver.id,
+    { status: "active", version: 4, reason: "Moderation complete" },
+    now,
+  );
+  const moderatedTrip = (
+    await trips.create(
+      driver.id,
+      { ...draft, requestId: crypto.randomUUID() },
+      now,
+    )
+  ).trip;
+  await store.cancelTrip(
+    passenger.id,
+    moderatedTrip.id,
+    { version: 1, reason: "Moderation" },
+    now,
+  );
+  await store.setUser(
+    root.id,
+    passenger.id,
+    { status: "suspended", version: 2, reason: "Suspend admin" },
+    now,
+  );
+  assert.equal((await moderatorCall("/api/admin/overview")).status, 401);
+  await store.setUser(
+    root.id,
+    passenger.id,
+    { status: "active", version: 3, reason: "Restore admin" },
+    now,
+  );
+  const revokeRaceTrip = (
+    await trips.create(
+      driver.id,
+      { ...draft, requestId: crypto.randomUUID() },
+      now,
+    )
+  ).trip;
+  const revokeRace = await Promise.allSettled([
+    store.cancelTrip(
+      passenger.id,
+      revokeRaceTrip.id,
+      { version: 1, reason: "Concurrent moderation" },
+      now,
+    ),
+    store.setRole(
+      root.id,
+      passenger.id,
+      { role: "user", version: 4, reason: "Revoke admin" },
+      now,
+    ),
+  ]);
+  assert.equal(revokeRace[1].status, "fulfilled");
+  if (revokeRace[0].status === "rejected")
+    assert.match(String(revokeRace[0].reason), /forbidden/);
+  await assert.rejects(store.overview(passenger.id), /forbidden/);
+  assert.equal(
+    (
+      await client.query(
+        "SELECT count(*)::int AS n FROM admin_audit WHERE action='admin_granted'",
+      )
+    ).rows[0].n,
+    1,
+  );
+  assert.equal(
+    (
+      await client.query(
+        "SELECT count(*)::int AS n FROM admin_audit WHERE action='admin_revoked'",
+      )
+    ).rows[0].n,
+    1,
+  );
   for (let i = 0; i < 23; i++)
     await client.query(
       "INSERT INTO users(id,display_name,created_at) VALUES($1,$2,$3)",
@@ -486,7 +679,7 @@ try {
   assert(!payload.includes(rootSubject));
   assert(!payload.includes(rootToken));
   console.log(
-    "PASS Root Admin real DB/API: configured LINE owner only, closed signup/service, protected root, CSRF/session roles, suspension/revocation/re-login, hidden suspended-driver trips, cancellation/refund, optimistic settings/users, audit atomic rollback, pagination and no identity/token exposure",
+    "PASS Root/Admin real DB/API: grant/revoke/suspend/restore admin, fresh login, root-only role/settings, admin moderation, protected peers/root, atomic role audit rollback, configured LINE owner only, closed signup/service, protected root, CSRF/session roles, suspension/revocation/re-login, hidden suspended-driver trips, cancellation/refund, optimistic settings/users, audit atomic rollback, pagination and no identity/token exposure",
   );
 } finally {
   await client.end().catch(() => {});
