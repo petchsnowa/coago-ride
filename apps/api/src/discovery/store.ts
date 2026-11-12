@@ -20,7 +20,7 @@ const summaryColumns = {
   vehicleColor: trips.vehicleColor,
   contributionSatang: trips.contributionSatang,
 };
-const available = (now: Date, enforceSafety = false) =>
+export const available = (now: Date, enforceSafety = false) =>
   and(
     ...(enforceSafety
       ? [

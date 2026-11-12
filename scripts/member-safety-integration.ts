@@ -1,3 +1,4 @@
+import { publicActivity } from "../apps/api/src/discovery/activity";
 import {
   Miniflare,
   Response as RuntimeResponse,
@@ -354,6 +355,11 @@ try {
     )
   ).trip;
   assert.equal(trip.contributionSatang, 20000);
+  const activity = await publicActivity(url.href, true, now);
+  assert.equal(activity.totals.vehicles, 1);
+  assert.equal(activity.totals.trips, 1);
+  assert.equal(activity.totals.seats, trip.seats);
+
   assert.equal(
     (await own(`/api/membership/trip-photo/${trip.id}`)).status,
     200,

@@ -21,6 +21,7 @@ it("shows production service copy while preview login stays unavailable", async 
     ),
   );
   render(<App />);
+  fireEvent.click(screen.getByText("สถานะระบบ", { selector: "summary" }));
   expect(screen.getByText("สถานะระบบ COAGO")).toBeInTheDocument();
   expect(screen.queryByText(/COAGO Test/)).not.toBeInTheDocument();
   expect(screen.queryByText("เว็บทดสอบ")).not.toBeInTheDocument();

@@ -1237,3 +1237,215 @@ legend {
 .discovery #search-title {
   font-size: clamp(1.5rem, 3vw, 2.2rem);
 }
+
+/* One header for member tools; the six main dashboard shortcuts stay in place. */
+.user-header {
+  position: relative;
+  z-index: 5;
+}
+.top-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.top-navigation .brand {
+  flex: 0 0 auto;
+}
+.top-menu-items {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  min-width: 0;
+}
+.top-menu-items > a,
+.top-menu-tool > summary {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #194f41;
+  padding: 0.6rem 0.2rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.top-menu-items > a:hover,
+.top-menu-tool > summary:hover {
+  text-decoration: underline;
+}
+.top-menu-tool {
+  position: static;
+}
+.top-menu-tool > summary {
+  list-style: none;
+}
+.top-menu-tool > summary::-webkit-details-marker {
+  display: none;
+}
+.top-menu-tool > summary::after {
+  content: " ▾";
+  font-size: 0.7rem;
+}
+.top-menu-tool[open] > summary {
+  color: #0c3f30;
+  text-decoration: underline;
+  text-underline-offset: 0.3rem;
+}
+.top-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  width: min(36rem, 100%);
+  max-height: 75dvh;
+  overflow: auto;
+  padding: 1.4rem;
+  border: 1px solid #b8cab2;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 12px 36px #132f2a1f;
+}
+.top-menu-panel .location-card,
+.top-menu-panel .account,
+.top-menu-panel .system {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  gap: 1rem;
+}
+.top-menu-panel .account-actions,
+.top-menu-panel .check {
+  min-width: 0;
+  max-width: none;
+  width: 100%;
+}
+.top-menu-panel h2 {
+  font-size: 1.25rem;
+}
+.top-menu-panel .eyebrow {
+  margin-top: 0;
+}
+.top-menu-panel .member-status {
+  border-top: 1px solid #d6e1cf;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+.menu-toggle {
+  display: none;
+  width: auto;
+}
+@media (max-width: 1000px) {
+  .menu-toggle {
+    display: block;
+    margin: 0;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+  }
+  .top-menu-items {
+    display: none;
+    width: 100%;
+    align-items: stretch;
+    justify-content: flex-start;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .top-menu-items[data-expanded="true"] {
+    display: flex;
+  }
+  .top-menu-items > a,
+  .top-menu-tool > summary {
+    display: block;
+    padding: 0.7rem;
+    border-radius: 8px;
+    background: #e9efdf;
+  }
+  .top-menu-panel {
+    position: static;
+    width: 100%;
+    margin: 0.5rem 0;
+    max-height: 70dvh;
+    box-shadow: none;
+  }
+}
+.travel-activity {
+  margin: 2rem 0;
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid #d6e1cf;
+  background: #fff;
+  border-radius: 20px;
+}
+.activity-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.activity-heading button {
+  width: auto;
+  flex-shrink: 0;
+}
+.activity-heading p {
+  margin: 0.4rem 0;
+}
+.activity-totals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.activity-totals > div {
+  padding: 1.2rem;
+  background: #e9efdf;
+  border-radius: 12px;
+  display: grid;
+  gap: 0.4rem;
+}
+.activity-totals strong {
+  font-size: 2rem;
+  line-height: 1.2;
+}
+.activity-destinations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.activity-destinations article {
+  border: 1px solid #d6e1cf;
+  border-radius: 12px;
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.activity-destinations h3 {
+  margin: 0;
+}
+.activity-destinations p {
+  margin: 0.5rem 0;
+}
+.activity-demand {
+  color: #416853;
+}
+@media (max-width: 700px) {
+  .activity-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .activity-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+  .activity-totals > div {
+    padding: 0.85rem;
+  }
+  .activity-destinations {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Keep dashboard descriptions visible on phones; only the small brand tagline is hidden. */
+.dashboard-grid .dashboard-tile span {
+  display: block;
+}

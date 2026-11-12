@@ -1,12 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { homeSummarySchema, type HomeSummary } from "@coago/contracts";
+import { type ReactNode } from "react";
 import type { AuthState, SiteSettings } from "@coago/contracts";
-import { LocationCard, useLocationAccess } from "./LocationAccess";
-const labels = {
-  pending: "รอตรวจสอบ",
-  approved: "ผ่านการตรวจแล้ว",
-  rejected: "กรุณาแก้ไขข้อมูล",
-};
+import { useLocationAccess } from "./LocationAccess";
 function Symbol({ kind }: { kind: "car" | "person" | "pin" }) {
   return (
     <svg
@@ -45,34 +39,6 @@ export default function HomeDashboard({
   children?: ReactNode;
 }) {
   const { state } = useLocationAccess();
-  const [record, setSummary] = useState<{
-      owner: string;
-      data: HomeSummary;
-    } | null>(null),
-    [failed, setFailed] = useState(false);
-  useEffect(() => {
-    setSummary(null);
-    setFailed(false);
-    if (!account?.user) return;
-    const control = new AbortController();
-    void fetch("/api/membership/home", {
-      cache: "no-store",
-      signal: AbortSignal.any([control.signal, AbortSignal.timeout(8000)]),
-    })
-      .then(async (r) => {
-        if (!r.ok) throw Error();
-        return homeSummarySchema.parse(await r.json());
-      })
-      .then((d) => {
-        if (!control.signal.aborted)
-          setSummary({ owner: account.user!.id, data: d });
-      })
-      .catch(() => {
-        if (!control.signal.aborted) setFailed(true);
-      });
-    return () => control.abort();
-  }, [account?.user?.id]);
-  const summary = record?.owner === account?.user?.id ? record?.data : null;
   const menus = [
     {
       title: "ค้นหาเที่ยว",
@@ -83,7 +49,11 @@ export default function HomeDashboard({
     {
       title: "ประกาศเที่ยว",
       detail: "เปิดที่นั่งว่างไปด้วยกัน",
-      href: site?.serviceOpen ? "#trips-title" : "#closed-title",
+      href: site?.serviceOpen
+        ? account?.user
+          ? "#trips-title"
+          : "#my-account"
+        : "#closed-title",
       kind: "car",
     },
     {
@@ -94,17 +64,13 @@ export default function HomeDashboard({
     },
     {
       title: "ข้อมูลสมาชิก",
-      detail: summary?.member
-        ? labels[summary.member.status]
-        : "สมัครและยืนยันตัวตน",
+      detail: "สมัครและยืนยันตัวตน",
       href: "/account",
       kind: "person",
     },
     {
       title: "รถของฉัน",
-      detail: summary?.vehicle
-        ? labels[summary.vehicle.status]
-        : "บันทึกและจัดการข้อมูลรถ",
+      detail: "บันทึกและจัดการข้อมูลรถ",
       href: "/account#my-vehicles",
       kind: "car",
     },
@@ -139,74 +105,6 @@ export default function HomeDashboard({
         </nav>
       </section>
       {children}
-      <section className="home-previews" aria-label="รูปสมาชิกและรถของฉัน">
-        <Preview
-          title="รถของฉัน"
-          kind="car"
-          image={account?.user ? summary?.vehicle?.photoId : undefined}
-          text={
-            summary?.vehicle
-              ? `${summary.vehicle.brand} ${summary.vehicle.model} · ${summary.vehicle.color}`
-              : "บันทึกรถเพื่อเลือกใช้ตอนประกาศเที่ยว"
-          }
-          href="/account#my-vehicles"
-        />
-        <Preview
-          title="ผู้เดินทาง"
-          kind="person"
-          image={account?.user ? summary?.member?.portraitId : undefined}
-          text={
-            account?.user
-              ? account.user.displayName
-              : "เข้าสู่ระบบเพื่อดูข้อมูลของคุณ"
-          }
-          href={account?.user ? "/account" : "#my-account"}
-        />
-        <p className="field-help">
-          {failed
-            ? "ยังโหลดรูปส่วนตัวไม่ได้ เปิดหน้าข้อมูลสมาชิกเพื่อตรวจสอบได้"
-            : "รูปส่วนตัวในส่วนนี้แสดงเฉพาะเจ้าของบัญชี ไม่แสดงเอกสารยืนยันตัวตนหรือป้ายทะเบียน"}
-        </p>
-      </section>
-      <LocationCard />
     </>
-  );
-}
-function Preview({
-  title,
-  kind,
-  image,
-  text,
-  href,
-}: {
-  title: string;
-  kind: "car" | "person";
-  image?: string;
-  text: string;
-  href: string;
-}) {
-  const [broken, setBroken] = useState(false);
-  useEffect(() => setBroken(false), [image]);
-  return (
-    <article className="home-preview">
-      <div className="preview-image">
-        {image && !broken ? (
-          <img
-            src={`/api/membership/uploads/${image}`}
-            alt={title}
-            onError={() => setBroken(true)}
-          />
-        ) : (
-          <Symbol kind={kind} />
-        )}
-      </div>
-      <div>
-        <h2>{title}</h2>
-        <p>{text}</p>
-        <a href={href}>
-          ดูและแก้ไขข้อมูล <span aria-hidden="true">→</span>
-        </a>
-      </div>
-    </article>
   );
 }

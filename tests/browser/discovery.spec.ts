@@ -21,6 +21,14 @@ async function prepare(
   );
   await page.route("**/api/discovery/trips**", async (route) => {
     const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/activity"))
+      return route.fulfill({
+        json: {
+          updatedAt: new Date().toISOString(),
+          totals: { trips: 0, vehicles: 0, seats: 0, pendingRequests: 0 },
+          destinations: [],
+        },
+      });
     if (url.pathname.endsWith("/upcoming"))
       return route.fulfill({ json: { trips: [], nextCursor: null } });
     if (url.pathname.endsWith(`/${id}`)) {

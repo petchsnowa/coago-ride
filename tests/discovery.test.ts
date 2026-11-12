@@ -241,3 +241,44 @@ it("upcoming failures are generic and do not reveal database errors", async () =
   expect(response.status).toBe(503);
   expect(await response.json()).toEqual({ error: "service_unavailable" });
 });
+
+it("activity summary is public, rejects extra query parameters and fails closed", async () => {
+  const activity = vi
+    .fn()
+    .mockResolvedValue({
+      updatedAt: now.toISOString(),
+      totals: { trips: 0, vehicles: 0, seats: 0, pendingRequests: 0 },
+      destinations: [],
+    });
+  const app = createApp(
+    undefined,
+    {},
+    {},
+    { store: () => store, now: () => now, activity },
+  );
+  const r = await app.request(
+    "https://coago.test/api/discovery/trips/activity",
+    {},
+    env,
+  );
+  expect(r.status).toBe(200);
+  expect(r.headers.get("Cache-Control")).toBe("no-store");
+  expect((await r.json()).totals.trips).toBe(0);
+  expect(
+    (
+      await app.request(
+        "https://coago.test/api/discovery/trips/activity?owner=private",
+        {},
+        env,
+      )
+    ).status,
+  ).toBe(400);
+  activity.mockRejectedValueOnce(Error("private database error"));
+  const failed = await app.request(
+    "https://coago.test/api/discovery/trips/activity",
+    {},
+    env,
+  );
+  expect(failed.status).toBe(503);
+  expect(await failed.text()).not.toContain("private database");
+});

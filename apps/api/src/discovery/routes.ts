@@ -1,3 +1,4 @@
+import { publicActivity } from "./activity";
 import { decodeDiscoveryCursor } from "./cursor";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -11,12 +12,14 @@ import { postgresDiscoveryStore, type DiscoveryStore } from "./store";
 export type DiscoveryDependencies = {
   store: (url: string, enforce?: boolean) => DiscoveryStore;
   now: () => Date;
+  activity: typeof publicActivity;
 };
 export function discoveryRoutes(
   overrides: Partial<DiscoveryDependencies> = {},
 ) {
   const deps = {
     store: postgresDiscoveryStore,
+    activity: publicActivity,
     now: () => new Date(),
     ...overrides,
   };
@@ -71,6 +74,17 @@ export function discoveryRoutes(
         await deps
           .store(databaseUrl(c.env), c.env.ENVIRONMENT === "production")
           .upcoming(deps.now()),
+      ),
+    );
+  });
+  app.get("/activity", async (c) => {
+    if ([...new URL(c.req.url).searchParams.keys()].length)
+      return c.json({ error: "invalid_search" }, 400);
+    return c.json(
+      await deps.activity(
+        databaseUrl(c.env),
+        c.env.ENVIRONMENT === "production",
+        deps.now(),
       ),
     );
   });

@@ -20,3 +20,15 @@ Safari/Chrome อาจต้องเปิดทั้ง Location Services �
 ไม่เปลี่ยน schema และไม่ต้องรัน migration ใหม่สำหรับ PR นี้ รัน lint/typecheck/unit/browser และ member safety integration ซึ่งตรวจ DTO ไม่มีข้อมูลส่วนตัวเกินขอบเขต ใช้ฐาน disposable local และ mock provider เดิม ไม่เขียนข้อมูลจริง หลัง review/merge และ CI ผ่าน ใช้ Prepare production Worker จาก main operation=maintenance_update ขณะ service/registration ปิดตาม runbookเดิม ไม่เปลี่ยน DNS/LINE/Auth provider/billing
 
 ผลตรวจ local รอบนี้: 262 tests, 66 Chromium desktop/mobile checks, lint/typecheck และ production frontend/Workers dry-run build ผ่าน ตรวจภาพหน้าแรกและฟอร์มสมาชิก/Root ทั้งสองขนาดแล้ว. Member safety integration ผ่านบน PostgreSQL/PostGIS และ local Workers/R2 โดย provider/routing ใช้ fixture; เพิ่ม assertion ว่า home DTO ไม่มีเอกสาร/เลขทะเบียนและไม่ได้ล็อกอินเข้าไม่ได้. ทดสอบปฏิเสธตำแหน่ง→ไม่มี request POST, อนุญาตภายหลัง→ส่งได้, timeout และออกจากหน้าระหว่างรอ. ไม่ได้ยืนยัน GPS จริงบนอุปกรณ์เจ้าของหรือ deploy production ในรอบนี้.
+
+## ปรับเมนูตามคำสั่งถัดมา
+
+คงหัวข้อและเมนูสีเขียว6ช่องตามที่เจ้าของเลือกไว้. นำการ์ดรูปรถ/ผู้เดินทางที่ซ้ำและเมนูล่างออกจากเนื้อหา รถและข้อมูลสมาชิกเปิดหน้าข้อมูลเดิมจากแถบบนได้ ส่วนบัญชี ตำแหน่งและสถานะระบบเป็น dropdown ที่ใช้งานได้ในแถบบน ฟังก์ชันยังตรวจสิทธิ์/อนุญาตตำแหน่งเหมือนเดิม. ลิงก์6ช่องที่ชี้บัญชี/ตำแหน่งเปิด dropdown ให้เอง รวมการเปิดเมนูบนมือถือ ปิดด้วย Escape ได้ ไม่แสดง Admin บนหน้าสมาชิก. API home summary เดิมยังรองรับ แต่หน้าแรกไม่โหลดรูป/ข้อมูลส่วนตัวซ้ำอีก ไม่ต้องเปลี่ยน schema หรือบริการภายนอก
+
+## ภาพรวมการร่วมเดินทางแทนการ์ดซ้ำ
+
+หน้าแรกแสดงข้อมูลจริงจาก GET /api/discovery/trips/activity: รถไม่ซ้ำจาก vehicleId ที่บันทึก, เที่ยวที่ยังเปิดรับ, ที่นั่งว่างหลังหักที่ตอบรับแล้ว, คำขอ pending ของสมาชิก active (productionต้องผ่านอนุมัติ). ใช้เงื่อนไขเดียวกับ discovery: เจ้าของ active, เที่ยว active/อนาคต/มีที่นั่ง และ production ตรวจ profile+รถ approved/versionปัจจุบัน. ไม่รวมเที่ยวเต็ม ยกเลิก หรือหมดเวลา ใช้SQL statementเดียวให้ยอดและแถวจังหวัดเป็นsnapshotเดียวกัน รวมคำขอก่อนjoinเพื่อไม่บวกที่นั่งซ้ำ รถคันเดียวหลายเที่ยวไม่นับซ้ำรวม แต่ปรากฏในหลายจังหวัดได้
+
+แสดงปลายทางมากสุด6แถวและกดดูทั้งหมดได้จากข้อมูล77จังหวัด ไม่มีชื่อผู้ขอ/เจ้าของ LINE โทรศัพท์ ทะเบียน รูปเอกสาร หรือพิกัดส่วนตัวในaggregate. แถวจังหวัดกดเปิดเที่ยวถัดไปด้วยdetailAPIที่ตรวจสถานะใหม่เสมอ. จำนวนคำขอไม่ใช่จำนวนคนไม่ซ้ำ และไม่ใช่ประกาศหารถอิสระ; ยังไม่ได้เพิ่ม wanted-trip postings. ไม่อ้างว่าเป็นGPSสด. แสดงเวลาอัปเดตและปุ่มrefresh; errorไม่แสดง0ปลอม. เมื่อปิดserviceไม่เรียก API/ไม่เปิดเผยข้อมูลที่guardปิดไว้ เงื่อนไขเปิดตำแหน่งก่อนmutationคงเดิม
+
+ผลตรวจรอบรวมเมนู/ภาพรวม: unit/API/UI/config 263 รายการผ่าน, lint/typecheck และ production frontend/Workers dry-run ผ่าน. PostgreSQL/PostGIS integration ตรวจจำนวนรถไม่ซ้ำข้ามเที่ยว/จังหวัด ยอดที่นั่งไม่เพิ่มตามจำนวนคำขอ ตัดเที่ยวเต็ม/ยกเลิก/หมดเวลา/เจ้าของถูกระงับ และตัดคำขอของผู้ถูกระงับแล้ว. Member safety suite ตรวจ aggregate ในโหมดบังคับ profile/รถapproved ร่วมกับ local Workers/R2 ผ่าน. Browser checks ครอบคลุม header dropdown/hash/Escape/mobile และยอดจริง/empty/error/retry/เปิดdetailจากจังหวัด ใช้ข้อมูลจำลอง ไม่ใช่ตัวเลขผู้ใช้จริงหรือ GPS จริง

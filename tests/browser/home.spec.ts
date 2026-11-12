@@ -15,6 +15,9 @@ test("home and readiness interaction", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "วันนี้จะไปที่ไหน",
   );
+  const toggle = page.getByRole("button", { name: /^เมนู/ });
+  if (await toggle.isVisible()) await toggle.click();
+  await page.locator("summary").filter({ hasText: "สถานะระบบ" }).click();
   await page.getByRole("button", { name: "ตรวจสถานะระบบ" }).click();
   await expect(
     page

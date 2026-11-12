@@ -1,11 +1,11 @@
+import TravelActivity from "./TravelActivity";
 import LocationAccess from "./LocationAccess";
 import HomeDashboard from "./HomeDashboard";
-import MemberStatus from "./MemberStatus";
+import UserHeader from "./UserHeader";
 import RideRequestsPanel from "./RideRequestsPanel";
 import { lazy, Suspense, useCallback } from "react";
 import { useEffect, useRef, useState } from "react";
 import { readySchema, type AuthState } from "@coago/contracts";
-import AuthPanel from "./AuthPanel";
 import TripsPanel from "./TripsPanel";
 import SearchTrips from "./SearchTrips";
 const MemberAccount = lazy(() => import("./MemberAccount"));
@@ -73,6 +73,10 @@ function UserPage() {
       });
     return () => control.abort();
   }, [adminEnabled]);
+  const [selection, setSelection] = useState<{
+    id: string;
+    revision: number;
+  }>();
   const [requestRevision, setRequestRevision] = useState(0);
   const requestsChanged = useCallback(
     () => setRequestRevision((value) => value + 1),
@@ -108,19 +112,48 @@ function UserPage() {
   }
   return (
     <main className="user-home">
-      <nav aria-label="ชื่อบริการ">
-        <a href="/">
-          COAGO<span>ไปด้วยกัน</span>
-        </a>
-        <div className="header-links">
-          <a href="#search-form">ค้นหาเที่ยว</a>
-          <a href="#trips-title">เที่ยวของฉัน</a>
-          <a href="/account">ข้อมูลสมาชิกและรถ</a>
-          <span className="badge">
-            {production ? "ร่วมเดินทาง" : "เว็บทดสอบ"}
-          </span>
-        </div>
-      </nav>
+      <UserHeader
+        account={account}
+        onAccountChange={setAccount}
+        serviceOpen={site?.serviceOpen ?? false}
+        registrationsOpen={site?.registrationsOpen ?? false}
+        memberStatus={adminEnabled}
+      >
+        <section className="system" aria-labelledby="system-title">
+          <div>
+            <p className="eyebrow">เริ่มต้นไปด้วยกัน</p>
+            <h2 id="system-title">
+              {production ? "สถานะระบบ COAGO" : "เรากำลังเตรียม COAGO ให้พร้อม"}
+            </h2>
+            <p>
+              {production
+                ? "ประกาศเที่ยวและจัดการคำขอร่วมเดินทาง"
+                : "ทดสอบส่งคำขอ ตอบรับ และยกเลิกที่นั่ง"}
+            </p>
+          </div>
+          <div className="check">
+            <button onClick={check} disabled={status === "loading"}>
+              {status === "loading"
+                ? "กำลังตรวจสอบ…"
+                : status === "error"
+                  ? "ลองอีกครั้ง"
+                  : "ตรวจสถานะระบบ"}
+            </button>
+            <p role="status" aria-live="polite">
+              {
+                {
+                  idle: "กดเพื่อตรวจความพร้อมของระบบ",
+                  loading: "กำลังเชื่อมต่อระบบ",
+                  ready: production
+                    ? "เชื่อมต่อระบบสำเร็จ"
+                    : "ระบบพร้อมสำหรับการพัฒนาต่อ",
+                  error: "ระบบยังไม่พร้อม กรุณาลองอีกครั้ง",
+                }[status]
+              }
+            </p>
+          </div>
+        </section>
+      </UserHeader>
       <HomeDashboard account={account} site={site}>
         <div id="find-trips" />
         {site?.serviceOpen ? (
@@ -128,6 +161,7 @@ function UserPage() {
             account={account}
             onRequestChange={requestsChanged}
             revision={requestRevision}
+            selection={selection}
           />
         ) : (
           <section className="site-closed" aria-labelledby="closed-title">
@@ -138,15 +172,18 @@ function UserPage() {
           </section>
         )}
       </HomeDashboard>
-      <div id="my-account" />
-      <AuthPanel
-        onAccountChange={setAccount}
-        serviceOpen={site?.serviceOpen ?? false}
-        registrationsOpen={site?.registrationsOpen ?? false}
+      <TravelActivity
+        enabled={site?.serviceOpen ?? false}
+        revision={requestRevision}
+        onTripSelect={(id) =>
+          setSelection((previous) => ({
+            id,
+            revision: (previous?.revision ?? 0) + 1,
+          }))
+        }
       />
-      {adminEnabled && account?.user && <MemberStatus key={account.user.id} />}
       <div id="my-journeys" />
-      {site?.serviceOpen && (
+      {site?.serviceOpen && account?.user && (
         <>
           <RideRequestsPanel
             account={account}
@@ -156,46 +193,6 @@ function UserPage() {
           <TripsPanel account={account} revision={requestRevision} />
         </>
       )}
-      <section className="system" aria-labelledby="system-title">
-        <div>
-          <p className="eyebrow">เริ่มต้นไปด้วยกัน</p>
-          <h2 id="system-title">
-            {production ? "สถานะระบบ COAGO" : "เรากำลังเตรียม COAGO ให้พร้อม"}
-          </h2>
-          <p>
-            {production
-              ? "ประกาศเที่ยวและจัดการคำขอร่วมเดินทาง"
-              : "ทดสอบส่งคำขอ ตอบรับ และยกเลิกที่นั่ง"}
-          </p>
-        </div>
-        <div className="check">
-          <button onClick={check} disabled={status === "loading"}>
-            {status === "loading"
-              ? "กำลังตรวจสอบ…"
-              : status === "error"
-                ? "ลองอีกครั้ง"
-                : "ตรวจสถานะระบบ"}
-          </button>
-          <p role="status" aria-live="polite">
-            {
-              {
-                idle: "กดเพื่อตรวจความพร้อมของระบบ",
-                loading: "กำลังเชื่อมต่อระบบ",
-                ready: production
-                  ? "เชื่อมต่อระบบสำเร็จ"
-                  : "ระบบพร้อมสำหรับการพัฒนาต่อ",
-                error: "ระบบยังไม่พร้อม กรุณาลองอีกครั้ง",
-              }[status]
-            }
-          </p>
-        </div>
-      </section>
-      <nav className="bottom-menu" aria-label="เมนูหลักด้านล่าง">
-        <a href="#dashboard-title">หน้าหลัก</a>
-        <a href="#find-trips">ค้นหาเที่ยว</a>
-        <a href="#my-journeys">การเดินทาง</a>
-        <a href="/account">บัญชีของฉัน</a>
-      </nav>
       <footer>COAGO · ทุกที่นั่งว่าง อาจเป็นการเดินทางของใครอีกคน</footer>
     </main>
   );

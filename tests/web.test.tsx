@@ -24,7 +24,8 @@ it("shows loading, failure and successful retry", async () => {
     )
     .mockResolvedValueOnce(new Response(JSON.stringify({ status: "ready" })));
   vi.stubGlobal("fetch", (url: string, init: RequestInit) =>
-    url.includes("/api/discovery/trips/upcoming")
+    url.includes("/api/discovery/trips/upcoming") ||
+    url.includes("/api/discovery/trips/activity")
       ? Promise.resolve(
           new Response(JSON.stringify({ trips: [], nextCursor: null })),
         )
@@ -41,6 +42,7 @@ it("shows loading, failure and successful retry", async () => {
         : fetch(url, init),
   );
   render(<App />);
+  fireEvent.click(screen.getByText("สถานะระบบ", { selector: "summary" }));
   fireEvent.click(
     screen.getByRole("button", { name: /ตรวจสถานะระบบ|ลองอีกครั้ง/ }),
   );
@@ -61,7 +63,8 @@ it("shows loading, failure and successful retry", async () => {
 it("times out and re-enables retry", async () => {
   vi.useFakeTimers();
   vi.stubGlobal("fetch", (_url: unknown, init: RequestInit) =>
-    String(_url).includes("/api/discovery/trips/upcoming")
+    String(_url).includes("/api/discovery/trips/upcoming") ||
+    String(_url).includes("/api/discovery/trips/activity")
       ? Promise.resolve(
           new Response(JSON.stringify({ trips: [], nextCursor: null })),
         )
@@ -82,6 +85,7 @@ it("times out and re-enables retry", async () => {
           ),
   );
   render(<App />);
+  fireEvent.click(screen.getByText("สถานะระบบ", { selector: "summary" }));
   fireEvent.click(
     screen.getByRole("button", { name: /ตรวจสถานะระบบ|ลองอีกครั้ง/ }),
   );
