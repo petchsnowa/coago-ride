@@ -209,6 +209,7 @@ export function postgresTripStore(
                 ownerTrip(owner, id),
                 eq(trips.version, input.version),
                 eq(trips.status, "active"),
+                sql`NOT EXISTS(SELECT 1 FROM journeys j WHERE j.trip_id=${trips.id} AND j.status IN ('travelling','arrived','completed'))`,
                 eq(trips.bookedSeats, 0),
                 gt(trips.departureAt, now),
               ),
@@ -255,6 +256,7 @@ export async function cancelOwnedTrip(
         ownerTrip(owner, id),
         eq(trips.version, input.version),
         eq(trips.status, "active"),
+        sql`NOT EXISTS(SELECT 1 FROM journeys j WHERE j.trip_id=${trips.id} AND j.status IN ('travelling','arrived','completed'))`,
         gt(trips.departureAt, now),
       ),
     )

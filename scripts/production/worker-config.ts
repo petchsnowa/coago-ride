@@ -42,10 +42,20 @@ export function productionWorkerSettings(env: NodeJS.ProcessEnv) {
     throw new Error("PRODUCTION_PRIVATE_BUCKET_REQUIRED");
   if (!/^[a-f\d]{40}$/.test(env.GITHUB_SHA ?? ""))
     throw new Error("PRODUCTION_RELEASE_SHA_REQUIRED");
+  if (
+    env.LINE_MESSAGING_ENABLED === "true" &&
+    (!env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN ||
+      env.LINE_MESSAGING_PROVIDER_CONFIRMED !== "true")
+  )
+    throw new Error("PRODUCTION_MESSAGING_CONFIGURATION_REQUIRED");
   return {
     origin,
     vars: {
       ENVIRONMENT: "production",
+      LINE_MESSAGING_ENABLED:
+        env.LINE_MESSAGING_ENABLED === "true" ? "true" : "false",
+      LINE_MESSAGING_PROVIDER_CONFIRMED:
+        env.LINE_MESSAGING_PROVIDER_CONFIRMED === "true" ? "true" : "false",
       NEON_ADMIN_AUTH_URL: env.NEON_ADMIN_AUTH_URL,
       COAGO_PRODUCTION_OWNER: productionOwner,
       APP_ORIGIN: productionOrigin,

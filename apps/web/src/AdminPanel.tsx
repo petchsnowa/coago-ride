@@ -1,3 +1,4 @@
+import AdminJourneys from "./AdminJourneys";
 import AdminAccounts from "./AdminAccounts";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -61,6 +62,7 @@ function PrivateAdmin({
   onRole: (root: boolean) => void;
   onChange: () => void;
 }) {
+  const [showJourneys, setShowJourneys] = useState(false);
   const [role, setRole] = useState<"root" | "admin" | "user" | null>(null),
     [roleError, setRoleError] = useState(false),
     [tab, setTab] = useState<Tab>("overview"),
@@ -260,6 +262,7 @@ function PrivateAdmin({
     admin_revoked: "ถอนสิทธิ์ Admin",
     profile_reviewed: "ตรวจข้อมูลสมาชิก",
     vehicle_reviewed: "ตรวจข้อมูลรถ",
+    license_reviewed: "ตรวจใบขับขี่",
     private_document_viewed: "เปิดข้อมูลส่วนตัวเพื่อตรวจสอบ",
   };
   return (
@@ -271,6 +274,10 @@ function PrivateAdmin({
       {role === "root" && (
         <AdminAccounts csrf={csrf} onChange={() => void load()} />
       )}
+      <details onToggle={(e) => setShowJourneys(e.currentTarget.open)}>
+        <summary>ติดตามการเดินทางทั้งหมด</summary>
+        {showJourneys && <AdminJourneys csrf={csrf} />}
+      </details>
       <div className="admin-tabs">
         {(Object.keys(labels) as Tab[])
           .filter((key) => role === "root" || key !== "settings")

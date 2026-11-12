@@ -90,10 +90,16 @@ export default function TravelActivity({
               </strong>
               <span>คำขอร่วมทางรอตอบรับ</span>
             </div>
+            <div>
+              <strong>
+                {(data.totals.wantedPosts ?? 0).toLocaleString("th-TH")}
+              </strong>
+              <span>ประกาศหารถที่เปิดอยู่</span>
+            </div>
           </div>
           <p className="field-help">
-            คำขอเป็นคำขอร่วมเที่ยวที่มีอยู่
-            ยังไม่ใช่ประกาศหารถอิสระหรือจำนวนคนที่ไม่ซ้ำกัน
+            คำขอเป็นคำขอร่วมเที่ยวที่มีอยู่ แยกจากประกาศหารถอิสระ
+            และไม่ใช่จำนวนคนที่ไม่ซ้ำกัน
           </p>
           {data.destinations.length === 0 ? (
             <p>ยังไม่มีเที่ยวเปิดรับในขณะนี้</p>
@@ -133,6 +139,24 @@ export default function TravelActivity({
                 </article>
               ))}
             </div>
+          )}
+          {!!data.wantedDestinations?.length && (
+            <section>
+              <h3>กำลังหารถไปไหนกัน</h3>
+              <div className="activity-destinations">
+                {data.wantedDestinations.map((d) => (
+                  <article key={d.province}>
+                    <div>
+                      <h3>หารถไป{d.province}</h3>
+                      <p>
+                        {d.posts} ประกาศ · ต้องการ {d.seats} ที่นั่ง
+                      </p>
+                    </div>
+                    <a href="#wanted-board">ดูประกาศหารถ</a>
+                  </article>
+                ))}
+              </div>
+            </section>
           )}
           {data.destinations.length > 6 && (
             <button

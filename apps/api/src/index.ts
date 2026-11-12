@@ -1,3 +1,7 @@
+import { notificationRoutes } from "./notifications/routes";
+import { dispatchNotification } from "./notifications/dispatch";
+import { wantedRoutes, publicWantedRoutes } from "./community/wanted";
+import { journeyRoutes } from "./community/journeys";
 import { adminAuthRoutes } from "./admin-auth/routes";
 import {
   rideRequestRoutes,
@@ -78,7 +82,7 @@ export function createApp(
       )
         return c.json({ error: "canonical_origin_required" }, 403);
       if (
-        /^\/api\/(?:trips|ride-requests|admin|membership)(?:\/|$)/.test(
+        /^\/api\/(?:trips|ride-requests|admin|membership|wanted|journeys|notifications)(?:\/|$)/.test(
           c.req.path,
         )
       )
@@ -139,6 +143,10 @@ export function createApp(
       return c.json(readySchema.parse({ status: "unavailable" }), 503);
     }
   });
+  app.route("/api/notifications", notificationRoutes());
+  app.route("/api/wanted", wantedRoutes());
+  app.route("/api/journeys", journeyRoutes());
+  app.route("/api/discovery/wanted", publicWantedRoutes());
   app.route("/api/membership", membershipRoutes());
   app.route("/api/admin-auth", adminAuthRoutes());
   app.route("/api/auth", authRoutes(authDependencies));
@@ -184,4 +192,9 @@ export function createApp(
   );
   return app;
 }
-export default createApp();
+const app = createApp();
+export default Object.assign(app, {
+  async scheduled(_event: unknown, env: Bindings) {
+    await dispatchNotification(env);
+  },
+});

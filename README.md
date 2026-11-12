@@ -84,22 +84,22 @@ docker compose down
 
 ## Environment variables
 
-| ค่า | สถานที่ | หมายเหตุ |
-| --- | --- | --- |
-| DATABASE_URL | root .env สำหรับ scripts และ apps/api/.dev.vars สำหรับ local Workers | Secret, local/test เท่านั้น |
-| ENVIRONMENT | Wrangler vars | local/test อนุญาต direct test URL; environment อื่นต้องใช้ Hyperdrive |
-| ALLOWED_ORIGINS | Wrangler vars | Exact origin allowlist คั่น comma; ไม่ใช้ wildcard credentials |
-| VITE_API_BASE_URL | apps/web/.env หากต้องการ | Public; ว่างใช้ relative URL |
-| HYPERDRIVE | Workers binding เมื่อได้รับการตั้งค่าในอนาคต | ยังไม่มี remote resource/ID ใน Phase 1 |
+| ค่า               | สถานที่                                                              | หมายเหตุ                                                              |
+| ----------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| DATABASE_URL      | root .env สำหรับ scripts และ apps/api/.dev.vars สำหรับ local Workers | Secret, local/test เท่านั้น                                           |
+| ENVIRONMENT       | Wrangler vars                                                        | local/test อนุญาต direct test URL; environment อื่นต้องใช้ Hyperdrive |
+| ALLOWED_ORIGINS   | Wrangler vars                                                        | Exact origin allowlist คั่น comma; ไม่ใช้ wildcard credentials        |
+| VITE_API_BASE_URL | apps/web/.env หากต้องการ                                             | Public; ว่างใช้ relative URL                                          |
+| HYPERDRIVE        | Workers binding เมื่อได้รับการตั้งค่าในอนาคต                         | ยังไม่มี remote resource/ID ใน Phase 1                                |
 
 API อ่าน Hyperdrive binding ก่อน direct DATABASE_URL และไม่รับ direct URL นอก local/test Readiness ไม่เปิดเผยข้อผิดพลาดภายใน
 
 ## Health contracts
 
-| Endpoint | ผล |
-| --- | --- |
-| /health/live | 200 `{ "status": "ok" }` ไม่เรียก DB |
-| /health/ready | 200 `{ "status": "ready" }` เมื่อ DB/PostGIS พร้อม |
+| Endpoint      | ผล                                                                   |
+| ------------- | -------------------------------------------------------------------- |
+| /health/live  | 200 `{ "status": "ok" }` ไม่เรียก DB                                 |
+| /health/ready | 200 `{ "status": "ready" }` เมื่อ DB/PostGIS พร้อม                   |
 | /health/ready | 503 `{ "status": "unavailable" }` เมื่อ config/DB/extension ไม่พร้อม |
 
 pg ตั้ง connection timeout 1.5 วินาที, server statement timeout 2.5 วินาที และ client query timeout 3 วินาที ปิด client ใน finally หลัง request ทุกครั้ง Frontend abort หลัง 8 วินาทีและลองใหม่ได้
@@ -124,21 +124,17 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 
 หลัง LINE Login เปิดรายละเอียดเที่ยวของผู้อื่นแล้วส่งคำขอ1ที่นั่งได้ ดู/ยกเลิกใน «คำขอของฉัน» เจ้าของดู «คำขอที่เข้ามา» คำขอpendingยังไม่ยืนยันหรือหักที่นั่ง ขั้นตอบรับเพิ่มใน Phase 2E ด้านล่าง ดู [กติกา/ขอบเขต](docs/phase-2d-ride-requests.md) และใช้ `pnpm test:requests:integration` หลัง migrations เพื่อทดสอบหลายฝ่ายบนฐานจริง งานต่อบน PR #6 โดยยังไม่ merge
 
-
 ## ตอบรับ/ปฏิเสธและจัดสรรที่นั่ง Phase 2E
 
 เจ้าของเที่ยวเปิด «คำขอที่เข้ามา» เลือกตอบรับ 1 ที่นั่งหรือปฏิเสธพร้อมเหตุผลได้ ผู้โดยสารดูผล/รายละเอียดที่ส่งคำขอไว้ใน «คำขอของฉัน» และยกเลิกที่นั่งที่ตอบรับแล้วได้ก่อนเวลาเดินทาง ระบบคืนที่นั่งครั้งเดียว เที่ยวเต็มไม่แสดงในผลค้นหาสาธารณะ รายละเอียดที่ตอบรับแล้วถูกล็อกจนไม่มีที่นั่งตอบรับอยู่ การยกเลิกเที่ยวจะยกเลิกคำขอที่ยังใช้งานทั้งหมดด้วย
 
 ดู [กติกาและ API](docs/phase-2e-decisions.md) และ [ผลตรวจ](docs/verification-phase-2e.md) หลัง migrate รัน `pnpm test:decisions:integration` ตรวจการแข่งขันที่นั่งสุดท้ายและ invariants บน PostgreSQL จริง และ `pnpm test:decisions:upgrade` ตรวจ upgrade จาก migration 0005 ที่มีคำขอเก่าในฐานชั่วคราวที่ script สร้าง/ลบเอง `pnpm test:auth:workers` รวม HTTP smoke ด้วย 3 synthetic actors ผ่าน Workers ส่วน remote ใช้ staging workflow เดิม ไม่ production งานคงอยู่ใน PR #6 แบบ Draft ยังไม่ merge
 
-
 ## เตรียม production
 
 ดู [สถานะและคู่มือเปิด coago.space](docs/production-launch.md) ซึ่งแยกฐานใหม่/LINE/config/backup/rollback/งานดูแลผู้ใช้ออกจาก staging ใช้ `pnpm release:check https://coago-line-test.akkarapatchara.workers.dev` ตรวจ HTTP แบบ anonymous GET ที่ไม่เขียนข้อมูล คำสั่งนี้ไม่ deploy/migrate และไม่ยืนยัน backup หรือ real LINE walkthrough ปัจจุบันยังไม่มี production deploy workflow
 
-
 ตรวจ Direct DB/Hyperdrive แบบอ่านอย่างเดียวผ่าน [Database readiness workflow](.github/workflows/database-readiness.yml) ดูวิธีตั้ง production Environment/Direct host ใน [คู่มือ](docs/production-launch.md) ทดสอบตัวอ่าน metadata บนฐาน local ด้วย `pnpm test:database-readiness:integration` ไม่มี deploy/migrate จาก workflow นี้
-
 
 การสร้างตารางครั้งแรกใช้ [Production database bootstrap](.github/workflows/production-bootstrap.yml) แบบ manual จาก main สำหรับฐาน production ใหม่ที่ตรวจแล้วเท่านั้น ดู [ขั้นตอนและข้อจำกัด](docs/production-launch.md) `pnpm db:migrate` ยังคงจำกัด local/test ตามเดิม ทดสอบ bootstrap/rollback บน disposable DB ด้วย `pnpm test:production-bootstrap:integration` ไม่มี production deployment อัตโนมัติ
 
@@ -156,8 +152,12 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 
 ขอบเขตใหม่: [สมาชิก/รถ/แผนที่/ราคาคงที่](docs/member-safety-and-maps.md), [Root/Admin email-password](docs/admin-email-auth.md). `/account` สำหรับข้อมูลสมาชิก LINE, `/admin` สำหรับ staff, `/root` เฉพาะRoot. ข้อมูลต้องอนุมัติก่อนประกาศ/ส่ง/ตอบรับคำขอใหม่; cancel/refundเดิมยังได้
 
-`pnpm test:members:integration` ใช้disposablePostgres, mockedNeon และlocalWorkers/R2 ไม่ส่งอีเมลหรือใช้เอกสารจริง. Migration0010รวม11migrations/13appTables. ห้ามใช้legacybootstrap0000–0006กับschemaปัจจุบัน; ใช้guardedupgradeworkflowตามrunbook. ไม่เปิดบริการ/paid planจากmerge
+`pnpm test:members:integration` ใช้disposablePostgres, mockedNeon และlocalWorkers/R2 ไม่ส่งอีเมลหรือใช้เอกสารจริง. Migration0010เป็นฐานเดิม; ชุดปัจจุบันถึง0011รวม12migrations/19appTables. ห้ามใช้legacybootstrap0000–0006กับschemaปัจจุบัน; ใช้guardedupgradeworkflowตามrunbook. ไม่เปิดบริการ/paid planจากmerge
 
 ### หน้าแรกและตำแหน่ง
 
 หน้าแรกแบบแดชบอร์ดและรูปแบบฟอร์มร่วมกันทุกหน้า รวม Root/Admin พร้อมภาษาไทยมีหัว อ่านรายละเอียดและข้อจำกัดการตรวจตำแหน่งก่อนบันทึกเที่ยว/ส่งคำขอใน [หน้าแรกและตำแหน่ง](docs/home-dashboard-and-location.md). รอบนี้ไม่มี schema migration ใหม่.
+
+## ใบขับขี่ ประกาศหารถ และสถานะเดินทาง
+
+ชุดต่อจาก PR17 เพิ่มการตรวจใบขับขี่ผู้ขับ ประกาศหารถอิสระ ภาพรวมปลายทาง รายงานสถานะเดินทางและแผนที่จุดรับ–ส่ง พร้อมคิวแจ้งเตือน LINE แบบ opt-in ที่ปิดเป็นค่าเริ่มต้น. Schema ปัจจุบัน12migrations/19appTables. ใช้ `pnpm test:community:integration` และอ่าน [ขั้นตอนใช้งาน/อัปเกรด/ตั้งค่า LINE](docs/community-safety-and-journeys.md). ธีมหลัก Porcelain/Onyx/LimeMoss/Mustard; LIFF/RichMenuยังรอท้ายสุด.

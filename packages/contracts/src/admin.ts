@@ -91,6 +91,7 @@ export const adminAuditSchema = z
       "admin_revoked",
       "profile_reviewed",
       "vehicle_reviewed",
+      "license_reviewed",
       "private_document_viewed",
     ]),
     targetType: z.enum(["user", "trip", "settings"]),

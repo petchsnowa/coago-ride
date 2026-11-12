@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 export default function MemberReview({ csrf }: { csrf: string }) {
   const [cursor, setCursor] = useState<string | null>(null);
-  const [kind, setKind] = useState<"profiles" | "vehicles">("profiles"),
+  const [kind, setKind] = useState<"profiles" | "vehicles" | "licenses">(
+      "profiles",
+    ),
     [items, setItems] = useState<Record<string, unknown>[]>([]),
     [selected, setSelected] = useState<Record<string, unknown> | null>(null),
     [reason, setReason] = useState(""),
@@ -81,7 +83,7 @@ export default function MemberReview({ csrf }: { csrf: string }) {
   }
   return (
     <section className="admin-panel">
-      <h2>ตรวจสมาชิกและรถ</h2>
+      <h2>ตรวจสมาชิก ใบขับขี่ และรถ</h2>
       <p>
         เปิดข้อมูลเฉพาะเพื่อยืนยันตัวตนและรถ การเปิดดูข้อมูลและผลตรวจมีประวัติ
         ผู้ดูแลตรวจข้อมูลตนเองไม่ได้
@@ -99,6 +101,13 @@ export default function MemberReview({ csrf }: { csrf: string }) {
         onClick={() => setKind("vehicles")}
       >
         ข้อมูลรถ
+      </button>
+      <button
+        className="secondary"
+        disabled={busy}
+        onClick={() => setKind("licenses")}
+      >
+        ใบขับขี่
       </button>
       <button
         className="secondary"
@@ -143,6 +152,9 @@ export default function MemberReview({ csrf }: { csrf: string }) {
                 "phone",
                 "documentKind",
                 "documentNumber",
+                "licenseNumber",
+                "licenseClass",
+                "expiresOn",
                 "country",
                 "brand",
                 "model",
@@ -162,6 +174,9 @@ export default function MemberReview({ csrf }: { csrf: string }) {
                       phone: "โทรศัพท์",
                       documentKind: "ประเภทหลักฐาน",
                       documentNumber: "เลขเอกสาร",
+                      licenseNumber: "เลขใบขับขี่",
+                      licenseClass: "ชนิดใบขับขี่",
+                      expiresOn: "หมดอายุวันที่",
                       country: "ประเทศ",
                       brand: "ยี่ห้อ",
                       model: "รุ่น",
@@ -186,7 +201,8 @@ export default function MemberReview({ csrf }: { csrf: string }) {
                       {
                         portraitId: "รูปใบหน้า",
                         documentId: "หลักฐานตัวตน",
-                        photoId: "รูปถ่ายรถ",
+                        photoId:
+                          kind === "licenses" ? "รูปใบขับขี่" : "รูปถ่ายรถ",
                         platePhotoId: "รูปทะเบียน",
                       } as Record<string, string>
                     )[k]

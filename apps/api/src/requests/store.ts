@@ -109,6 +109,7 @@ async function byId(client: pg.Client, id: string) {
 }
 type TripRow = {
   owner_status: string;
+  journey_started: boolean;
   id: string;
   owner_id: string;
   status: string;
@@ -127,12 +128,13 @@ type TripRow = {
   departure_at: Date;
 };
 const available = (trip: TripRow, now: Date) =>
+  !trip.journey_started &&
   trip.status === "active" &&
   trip.owner_status === "active" &&
   trip.seats_offered > trip.seats_booked &&
   trip.departure_at > now;
 const tripSelect =
-  "SELECT (SELECT u.status FROM users u WHERE u.id=trips.owner_id) AS owner_status,id,owner_id,status,seats_offered,seats_booked,version,departure_at,origin_province,destination_province,pickup_point,dropoff_point,vehicle_model,vehicle_color,contribution_satang,luggage_notes,conditions FROM trips";
+  "SELECT EXISTS(SELECT 1 FROM journeys j WHERE j.trip_id=trips.id AND j.status IN ('travelling','arrived','completed')) AS journey_started,(SELECT u.status FROM users u WHERE u.id=trips.owner_id) AS owner_status,id,owner_id,status,seats_offered,seats_booked,version,departure_at,origin_province,destination_province,pickup_point,dropoff_point,vehicle_model,vehicle_color,contribution_satang,luggage_notes,conditions FROM trips";
 function snapshot(trip: TripRow) {
   return publicTripDetailSchema.parse({
     id: trip.id,
@@ -174,7 +176,7 @@ async function safetyForRequest(
   if (p.rows[0]?.status !== "approved")
     throw new RideRequestError("member_verification_required");
   const driver = await client.query(
-    "SELECT 1 FROM member_profiles p JOIN trips t ON t.owner_id=p.user_id JOIN vehicles v ON v.id=(t.safety->>'vehicleId')::uuid WHERE t.id=$1 AND p.status='approved' AND v.status='approved' AND v.owner_id=t.owner_id AND v.version=(t.safety->>'vehicleVersion')::int FOR SHARE OF p,v",
+    "SELECT 1 FROM member_profiles p JOIN trips t ON t.owner_id=p.user_id JOIN vehicles v ON v.id=(t.safety->>'vehicleId')::uuid JOIN driver_licenses l ON l.user_id=t.owner_id AND l.status='approved' AND l.expires_on>=(t.departure_at AT TIME ZONE 'Asia/Bangkok')::date WHERE t.id=$1 AND p.status='approved' AND v.status='approved' AND v.owner_id=t.owner_id AND v.version=(t.safety->>'vehicleVersion')::int FOR SHARE OF p,v,l",
     [tripId],
   );
   if (!driver.rowCount) throw new RideRequestError("trip_unavailable");
@@ -213,6 +215,15 @@ export function postgresRideRequestStore(
             throw new RideRequestError("request_reused");
           return { request: dto(same.rows[0]), created: false };
         }
+        if (
+          (
+            await client.query(
+              "SELECT 1 FROM journeys WHERE trip_id=$1 AND status IN ('travelling','arrived','completed')",
+              [trip.id],
+            )
+          ).rowCount
+        )
+          throw new RideRequestError("trip_unavailable");
         if (!available(trip, now))
           throw new RideRequestError("trip_unavailable");
         const pending = await client.query(
@@ -269,6 +280,15 @@ export function postgresRideRequestStore(
         if (row.status === "rejected")
           throw new RideRequestError("request_not_pending");
         if (row.status === "accepted") {
+          if (
+            (
+              await client.query(
+                "SELECT 1 FROM journeys WHERE trip_id=$1 AND status IN ('travelling','arrived','completed')",
+                [trip.id],
+              )
+            ).rowCount
+          )
+            throw new RideRequestError("cancellation_closed");
           if (trip.status !== "active" || trip.departure_at <= now)
             throw new RideRequestError("cancellation_closed");
           const released = await client.query(
@@ -305,6 +325,15 @@ export function postgresRideRequestStore(
         if (row.status !== "pending")
           throw new RideRequestError("request_not_pending");
         if (input.decision === "accept") {
+          if (
+            (
+              await client.query(
+                "SELECT 1 FROM journeys WHERE trip_id=$1 AND status IN ('travelling','arrived','completed')",
+                [trip.id],
+              )
+            ).rowCount
+          )
+            throw new RideRequestError("trip_unavailable");
           if (enforceSafety)
             await safetyForRequest(client, trip.id, row.passenger_id);
           if (!available(trip, now))

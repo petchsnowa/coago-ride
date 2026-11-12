@@ -1,3 +1,5 @@
+import { CommunityError } from "../community/shared";
+import { listJourneys, readJourney } from "../community/journeys";
 import { adminCookie, managedAdminSession } from "../admin-auth/session";
 import { Hono } from "hono";
 import { getCookie } from "hono/cookie";
@@ -96,6 +98,19 @@ export function adminRoutes(overrides: Partial<AdminDependencies> = {}) {
     c.get("session").user.id;
   const store = (env: Bindings) =>
     deps.store(databaseUrl(env), rootSubject(env));
+  app.get("/journeys", async (c) =>
+    c.json(await listJourneys(databaseUrl(c.env), c.req.query("cursor"))),
+  );
+  app.get("/journeys/:id", async (c) =>
+    c.json(
+      await readJourney(
+        databaseUrl(c.env),
+        actor(c),
+        z.uuid().parse(c.req.param("id")),
+        true,
+      ),
+    ),
+  );
   app.get("/accounts", async (c) =>
     withDatabase(databaseUrl(c.env), async (db) =>
       db.transaction(async (tx) => {
@@ -153,24 +168,20 @@ export function adminRoutes(overrides: Partial<AdminDependencies> = {}) {
         await tx
           .insert(users)
           .values({ id, displayName: input.data.name, role: "admin" });
-        await tx
-          .insert(externalIdentities)
-          .values({
-            provider: "admin_email",
-            subject: input.data.email,
-            userId: id,
-          });
-        await tx
-          .insert(adminAudit)
-          .values({
-            id: crypto.randomUUID(),
-            actorId: actor(c),
-            action: "admin_granted",
-            targetType: "user",
-            targetId: id,
-            reason: input.data.reason,
-            details: { invited: true, after: "admin" },
-          });
+        await tx.insert(externalIdentities).values({
+          provider: "admin_email",
+          subject: input.data.email,
+          userId: id,
+        });
+        await tx.insert(adminAudit).values({
+          id: crypto.randomUUID(),
+          actorId: actor(c),
+          action: "admin_granted",
+          targetType: "user",
+          targetId: id,
+          reason: input.data.reason,
+          details: { invited: true, after: "admin" },
+        });
         return c.json({ id }, 201);
       }),
     );
@@ -245,18 +256,22 @@ export function adminRoutes(overrides: Partial<AdminDependencies> = {}) {
     );
   });
   app.onError((error, c) =>
-    error instanceof AdminError
-      ? c.json(
-          { error: error.code },
-          error.code === "forbidden"
-            ? 403
-            : error.code === "not_found"
-              ? 404
-              : 409,
-        )
-      : error instanceof TripError
-        ? c.json({ error: error.code }, 409)
-        : c.json({ error: "service_unavailable" }, 503),
+    error instanceof CommunityError
+      ? c.json({ error: error.code }, error.status)
+      : error instanceof z.ZodError
+        ? c.json({ error: "invalid_input" }, 400)
+        : error instanceof AdminError
+          ? c.json(
+              { error: error.code },
+              error.code === "forbidden"
+                ? 403
+                : error.code === "not_found"
+                  ? 404
+                  : 409,
+            )
+          : error instanceof TripError
+            ? c.json({ error: error.code }, 409)
+            : c.json({ error: "service_unavailable" }, 503),
   );
   return app;
 }

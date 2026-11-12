@@ -36,6 +36,8 @@ async function main() {
   mask(required("ROOT_ADMIN_EMAIL"));
   mask(required("MEMBER_DATA_KEY"));
   if (process.env.ORS_API_KEY) mask(process.env.ORS_API_KEY);
+  if (process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN)
+    mask(process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN);
   mask(required("COAGO_PRODUCTION_DATABASE_URL"));
   mask(settings.origin.password);
   async function cf<T>(path: string): Promise<T> {
@@ -191,6 +193,12 @@ async function main() {
           run_worker_first: ["/api", "/api/*", "/health", "/health/*"],
         },
         vars: settings.vars,
+        triggers: {
+          crons:
+            settings.vars.LINE_MESSAGING_ENABLED === "true"
+              ? ["*/5 * * * *"]
+              : [],
+        },
         ...(process.env.COAGO_PRIVATE_DOCUMENTS_BUCKET
           ? {
               r2_buckets: [
@@ -211,6 +219,12 @@ async function main() {
         LINE_CHANNEL_SECRET: secret,
         ROOT_ADMIN_EMAIL: required("ROOT_ADMIN_EMAIL"),
         MEMBER_DATA_KEY: required("MEMBER_DATA_KEY"),
+        ...(process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN
+          ? {
+              LINE_MESSAGING_CHANNEL_ACCESS_TOKEN:
+                process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN,
+            }
+          : {}),
         ...(process.env.ORS_API_KEY
           ? { ORS_API_KEY: process.env.ORS_API_KEY }
           : {}),

@@ -12,6 +12,9 @@ export type Bindings = {
   };
   MEMBER_DATA_KEY?: string;
   ORS_API_KEY?: string;
+  LINE_MESSAGING_ENABLED?: string;
+  LINE_MESSAGING_PROVIDER_CONFIRMED?: string;
+  LINE_MESSAGING_CHANNEL_ACCESS_TOKEN?: string;
   NEON_ADMIN_AUTH_URL?: string;
   ROOT_ADMIN_EMAIL?: string;
   HYPERDRIVE?: { connectionString: string };

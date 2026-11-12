@@ -8,12 +8,15 @@ import { sql, eq, and, desc } from "drizzle-orm";
 import {
   withDatabase,
   memberProfiles,
+  driverLicenses,
   vehicles,
   privateUploads,
   adminAudit,
 } from "@coago/db";
 import {
   consentVersion,
+  driverLicenseInputSchema,
+  bangkokDate,
   tripCursorSchema,
   profileInputSchema,
   vehicleInputSchema,
@@ -103,7 +106,7 @@ export function membershipRoutes() {
     if (c.req.header("X-Consent-Version") !== consentVersion)
       return c.json({ error: "consent_required" }, 400);
     const purpose = z
-      .enum(["portrait", "document", "vehicle", "plate"])
+      .enum(["portrait", "document", "vehicle", "plate", "license"])
       .parse(c.req.param("purpose"));
     if (!c.env.PRIVATE_DOCUMENTS)
       return c.json({ error: "private_storage_unavailable" }, 503);
@@ -319,6 +322,75 @@ export function membershipRoutes() {
       );
     }),
   );
+  app.get("/license", async (c) =>
+    withDatabase(databaseUrl(c.env), async (db) => {
+      const [row] = await db
+        .select()
+        .from(driverLicenses)
+        .where(eq(driverLicenses.userId, owner(c)));
+      return c.json(
+        row
+          ? {
+              ...(await decode<Record<string, unknown>>(
+                await dataKey(c.env.MEMBER_DATA_KEY),
+                row.data,
+                `license:${owner(c)}`,
+              )),
+              expiresOn: row.expiresOn,
+              status: row.status,
+              version: row.version,
+              reviewReason: row.reviewReason,
+            }
+          : null,
+      );
+    }),
+  );
+  app.put("/license", async (c) => {
+    const input = driverLicenseInputSchema.parse(await c.req.json());
+    if (input.expiresOn < bangkokDate())
+      return c.json({ error: "license_expired" }, 400);
+    return withDatabase(databaseUrl(c.env), (db) =>
+      db.transaction(async (tx) => {
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtextextended(${"member:" + owner(c)},0))`,
+        );
+        const [profile] = await tx
+          .select()
+          .from(memberProfiles)
+          .where(eq(memberProfiles.userId, owner(c)))
+          .for("share");
+        if (profile?.status !== "approved")
+          return c.json({ error: "member_verification_required" }, 403);
+        const [before] = await tx
+          .select()
+          .from(driverLicenses)
+          .where(eq(driverLicenses.userId, owner(c)))
+          .for("update");
+        if ((before?.version ?? 0) !== input.version)
+          return c.json({ error: "conflict" }, 409);
+        await assets(tx, owner(c), [[input.photoId, "license"]]);
+        const values = {
+          data: await seal(
+            await dataKey(c.env.MEMBER_DATA_KEY),
+            encode(input),
+            `license:${owner(c)}`,
+          ),
+          documentLast4: input.licenseNumber.slice(-4),
+          expiresOn: input.expiresOn,
+          status: "pending",
+          version: input.version + 1,
+          reviewReason: null,
+          reviewedBy: null,
+          updatedAt: new Date(),
+        };
+        await tx
+          .insert(driverLicenses)
+          .values({ userId: owner(c), ...values })
+          .onConflictDoUpdate({ target: driverLicenses.userId, set: values });
+        return c.json({ status: "pending", version: values.version });
+      }),
+    );
+  });
   async function assets(
     tx: import("../trips/store").TripTransaction,
     user: string,
@@ -460,7 +532,9 @@ export function membershipRoutes() {
   });
   // Review access never returns document numbers in lists. Individual sensitive reads are audited.
   app.get("/review/:kind", async (c) => {
-    const kind = z.enum(["profiles", "vehicles"]).parse(c.req.param("kind")),
+    const kind = z
+        .enum(["profiles", "vehicles", "licenses"])
+        .parse(c.req.param("kind")),
       raw = c.req.query("cursor");
     let cursor: import("@coago/contracts").TripCursor | undefined;
     if (raw) {
@@ -473,8 +547,18 @@ export function membershipRoutes() {
     return withDatabase(databaseUrl(c.env), (db) =>
       db.transaction(async (tx) => {
         await assertManager(tx, owner(c), rootSubject(c.env));
-        const table = kind === "profiles" ? memberProfiles : vehicles,
-          id = kind === "profiles" ? memberProfiles.userId : vehicles.id,
+        const table =
+            kind === "profiles"
+              ? memberProfiles
+              : kind === "licenses"
+                ? driverLicenses
+                : vehicles,
+          id =
+            kind === "profiles"
+              ? memberProfiles.userId
+              : kind === "licenses"
+                ? driverLicenses.userId
+                : vehicles.id,
           after = cursor
             ? sql`(${table.updatedAt},${id})<(${new Date(cursor.createdAt)},${cursor.id}::uuid)`
             : sql`true`;
@@ -495,20 +579,37 @@ export function membershipRoutes() {
                   desc(memberProfiles.userId),
                 )
                 .limit(21)
-            : await tx
-                .select({
-                  id: vehicles.id,
-                  ownerId: vehicles.ownerId,
-                  brand: vehicles.brand,
-                  model: vehicles.model,
-                  status: vehicles.status,
-                  version: vehicles.version,
-                  updatedAt: vehicles.updatedAt,
-                })
-                .from(vehicles)
-                .where(after)
-                .orderBy(desc(vehicles.updatedAt), desc(vehicles.id))
-                .limit(21);
+            : kind === "licenses"
+              ? await tx
+                  .select({
+                    id: driverLicenses.userId,
+                    status: driverLicenses.status,
+                    version: driverLicenses.version,
+                    last4: driverLicenses.documentLast4,
+                    expiresOn: driverLicenses.expiresOn,
+                    updatedAt: driverLicenses.updatedAt,
+                  })
+                  .from(driverLicenses)
+                  .where(after)
+                  .orderBy(
+                    desc(driverLicenses.updatedAt),
+                    desc(driverLicenses.userId),
+                  )
+                  .limit(21)
+              : await tx
+                  .select({
+                    id: vehicles.id,
+                    ownerId: vehicles.ownerId,
+                    brand: vehicles.brand,
+                    model: vehicles.model,
+                    status: vehicles.status,
+                    version: vehicles.version,
+                    updatedAt: vehicles.updatedAt,
+                  })
+                  .from(vehicles)
+                  .where(after)
+                  .orderBy(desc(vehicles.updatedAt), desc(vehicles.id))
+                  .limit(21);
         const items = rows.slice(0, 20),
           last = items.at(-1);
         return c.json({
@@ -530,7 +631,9 @@ export function membershipRoutes() {
     );
   });
   app.get("/review/:kind/:id", async (c) => {
-    const kind = z.enum(["profiles", "vehicles"]).parse(c.req.param("kind")),
+    const kind = z
+        .enum(["profiles", "vehicles", "licenses"])
+        .parse(c.req.param("kind")),
       id = uuid.parse(c.req.param("id"));
     return withDatabase(databaseUrl(c.env), async (db) =>
       db.transaction(async (tx) => {
@@ -543,13 +646,26 @@ export function membershipRoutes() {
                   .from(memberProfiles)
                   .where(eq(memberProfiles.userId, id))
               )[0]
-            : (await tx.select().from(vehicles).where(eq(vehicles.id, id)))[0];
+            : kind === "licenses"
+              ? (
+                  await tx
+                    .select()
+                    .from(driverLicenses)
+                    .where(eq(driverLicenses.userId, id))
+                )[0]
+              : (
+                  await tx.select().from(vehicles).where(eq(vehicles.id, id))
+                )[0];
         if (!row) return c.json({ error: "not_found" }, 404);
         const user = "userId" in row ? row.userId : row.ownerId,
           data = await decode<Record<string, unknown>>(
             await dataKey(c.env.MEMBER_DATA_KEY),
             row.data,
-            kind === "profiles" ? `profile:${user}` : `vehicle:${id}:${user}`,
+            kind === "profiles"
+              ? `profile:${user}`
+              : kind === "licenses"
+                ? `license:${user}`
+                : `vehicle:${id}:${user}`,
           );
         await tx.insert(adminAudit).values({
           id: crypto.randomUUID(),
@@ -610,22 +726,38 @@ export function membershipRoutes() {
     );
   });
   app.put("/review/:kind/:id", async (c) => {
-    const kind = z.enum(["profiles", "vehicles"]).parse(c.req.param("kind")),
+    const kind = z
+        .enum(["profiles", "vehicles", "licenses"])
+        .parse(c.req.param("kind")),
       id = uuid.parse(c.req.param("id")),
       input = verificationDecisionSchema.parse(await c.req.json());
     return withDatabase(databaseUrl(c.env), async (db) =>
       db.transaction(async (tx) => {
         await assertManager(tx, owner(c), rootSubject(c.env));
-        const table = kind === "profiles" ? memberProfiles : vehicles,
+        const table =
+            kind === "profiles"
+              ? memberProfiles
+              : kind === "licenses"
+                ? driverLicenses
+                : vehicles,
           where =
             kind === "profiles"
               ? eq(memberProfiles.userId, id)
-              : eq(vehicles.id, id),
+              : kind === "licenses"
+                ? eq(driverLicenses.userId, id)
+                : eq(vehicles.id, id),
           row = (await tx.select().from(table).where(where).for("update"))[0];
         if (!row) return c.json({ error: "not_found" }, 404);
         if (row.version !== input.version)
           return c.json({ error: "conflict" }, 409);
         const target = "userId" in row ? row.userId : row.ownerId;
+        if (
+          kind === "licenses" &&
+          input.decision === "approved" &&
+          "expiresOn" in row &&
+          row.expiresOn < bangkokDate()
+        )
+          return c.json({ error: "license_expired" }, 409);
         if (target === owner(c))
           return c.json({ error: "self_review_forbidden" }, 403);
         await tx
@@ -641,7 +773,12 @@ export function membershipRoutes() {
         await tx.insert(adminAudit).values({
           id: crypto.randomUUID(),
           actorId: owner(c),
-          action: kind === "profiles" ? "profile_reviewed" : "vehicle_reviewed",
+          action:
+            kind === "profiles"
+              ? "profile_reviewed"
+              : kind === "licenses"
+                ? "license_reviewed"
+                : "vehicle_reviewed",
           targetType: "user",
           targetId: target,
           reason: input.reason,

@@ -1,3 +1,4 @@
+import WantedPanel from "./WantedPanel";
 import TravelActivity from "./TravelActivity";
 import LocationAccess from "./LocationAccess";
 import HomeDashboard from "./HomeDashboard";
@@ -73,6 +74,10 @@ function UserPage() {
       });
     return () => control.abort();
   }, [adminEnabled]);
+  const [wantedSearch, setWantedSearch] = useState<{
+    input: import("@coago/contracts").TripSearch;
+    revision: number;
+  }>();
   const [selection, setSelection] = useState<{
     id: string;
     revision: number;
@@ -162,6 +167,7 @@ function UserPage() {
             onRequestChange={requestsChanged}
             revision={requestRevision}
             selection={selection}
+            wantedSearch={wantedSearch}
           />
         ) : (
           <section className="site-closed" aria-labelledby="closed-title">
@@ -182,6 +188,19 @@ function UserPage() {
           }))
         }
       />
+      {site?.serviceOpen && (
+        <WantedPanel
+          key={account?.user?.id ?? "anonymous"}
+          account={account}
+          onChange={requestsChanged}
+          onSearch={(input) =>
+            setWantedSearch((p) => ({
+              input,
+              revision: (p?.revision ?? 0) + 1,
+            }))
+          }
+        />
+      )}
       <div id="my-journeys" />
       {site?.serviceOpen && account?.user && (
         <>

@@ -1,3 +1,4 @@
+import JourneyButton from "./JourneyButton";
 import { useEffect, useRef, useState } from "react";
 import {
   rideRequestListSchema,
@@ -212,6 +213,9 @@ function PrivateRequests({
       <div className="request-list">
         {items.map((request) => (
           <article className="ride-request-card" key={request.id}>
+            {mode === "mine" && request.status === "accepted" && (
+              <JourneyButton tripId={request.trip.id} csrf={csrf} />
+            )}
             <div className="trip-card-top">
               <h3>
                 {request.offeredTrip.originProvince} →{" "}

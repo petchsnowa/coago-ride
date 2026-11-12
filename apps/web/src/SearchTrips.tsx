@@ -36,11 +36,13 @@ export default function SearchTrips({
   onRequestChange = () => {},
   revision = 0,
   selection,
+  wantedSearch,
 }: {
   account?: AuthState | null;
   onRequestChange?: () => void;
   revision?: number;
   selection?: { id: string; revision: number };
+  wantedSearch?: { input: TripSearch; revision: number };
 } = {}) {
   const [form, setForm] = useState({
     originProvince: "",
@@ -205,6 +207,15 @@ export default function SearchTrips({
   useEffect(() => {
     if (selection) void openDetail(selection.id);
   }, [selection]);
+  useEffect(() => {
+    if (!wantedSearch) return;
+    setForm(wantedSearch.input);
+    setApplied(wantedSearch.input);
+    void search(wantedSearch.input);
+    document
+      .getElementById("search-form")
+      ?.scrollIntoView?.({ block: "start" });
+  }, [wantedSearch]);
   function closeDetail() {
     ++detailSequence.current;
     detailRequest.current?.abort();

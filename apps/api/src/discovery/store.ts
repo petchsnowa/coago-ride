@@ -24,9 +24,10 @@ export const available = (now: Date, enforceSafety = false) =>
   and(
     ...(enforceSafety
       ? [
-          sql`EXISTS(SELECT 1 FROM member_profiles p JOIN vehicles v ON v.owner_id=p.user_id WHERE p.user_id=${trips.ownerId} AND p.status='approved' AND v.id=(${trips.safety}->>'vehicleId')::uuid AND v.status='approved' AND v.version=(${trips.safety}->>'vehicleVersion')::int)`,
+          sql`EXISTS(SELECT 1 FROM member_profiles p JOIN vehicles v ON v.owner_id=p.user_id WHERE p.user_id=${trips.ownerId} AND p.status='approved' AND v.id=(${trips.safety}->>'vehicleId')::uuid AND v.status='approved' AND EXISTS(SELECT 1 FROM driver_licenses l WHERE l.user_id=p.user_id AND l.status='approved' AND l.expires_on>=(${trips.departureAt} AT TIME ZONE 'Asia/Bangkok')::date) AND v.version=(${trips.safety}->>'vehicleVersion')::int)`,
         ]
       : []),
+    sql`NOT EXISTS(SELECT 1 FROM journeys j WHERE j.trip_id=${trips.id} AND j.status IN ('travelling','arrived','completed'))`,
     eq(trips.status, "active"),
     gt(trips.departureAt, now),
     lt(trips.bookedSeats, trips.seats),

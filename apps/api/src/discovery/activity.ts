@@ -21,6 +21,8 @@ export async function publicActivity(
         WHERE r.status='pending'
           ${enforceSafety ? sql`AND EXISTS(SELECT 1 FROM member_profiles p WHERE p.user_id=r.passenger_id AND p.status='approved')` : sql``}
         GROUP BY r.trip_id
+      ), wanted AS (
+        SELECT w.destination_province AS province,w.seats FROM wanted_posts w JOIN users u ON u.id=w.owner_id AND u.status='active' JOIN member_profiles p ON p.user_id=w.owner_id AND p.status='approved' WHERE w.status='active' AND w.departure_until>${now}
       ), destinations AS (
         SELECT v.province, count(*)::int AS trips, count(DISTINCT v.car_id)::int AS vehicles,
           sum(v.seats)::int AS seats, coalesce(sum(p.requests),0)::int AS requests,
@@ -30,8 +32,9 @@ export async function publicActivity(
       SELECT jsonb_build_object(
         'updatedAt', ${now.toISOString()}::text,
         'totals', (SELECT jsonb_build_object('trips',count(*)::int,'vehicles',count(DISTINCT v.car_id)::int,
-          'seats',coalesce(sum(v.seats),0)::int,'pendingRequests',coalesce(sum(p.requests),0)::int)
+          'seats',coalesce(sum(v.seats),0)::int,'pendingRequests',coalesce(sum(p.requests),0)::int,'wantedPosts',(SELECT count(*)::int FROM wanted))
           FROM visible v LEFT JOIN pending p ON p.trip_id=v.id),
+        'wantedDestinations',coalesce((SELECT jsonb_agg(jsonb_build_object('province',province,'posts',posts,'seats',seats) ORDER BY posts DESC,province) FROM (SELECT province,count(*)::int AS posts,sum(seats)::int AS seats FROM wanted GROUP BY province) w),'[]'::jsonb),
         'destinations', coalesce((SELECT jsonb_agg(jsonb_build_object(
           'province',d.province,'trips',d.trips,'vehicles',d.vehicles,'seats',d.seats,
           'pendingRequests',d.requests,'nextTripId',d.next_id,

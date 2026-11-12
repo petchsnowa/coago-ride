@@ -1,7 +1,11 @@
 import { verifyRoadProof } from "./road-proof";
 import { eq, and } from "drizzle-orm";
-import { memberProfiles, vehicles } from "@coago/db";
-import { calculateTripCost, type TripDraft } from "@coago/contracts";
+import { memberProfiles, vehicles, driverLicenses } from "@coago/db";
+import {
+  calculateTripCost,
+  bangkokDate,
+  type TripDraft,
+} from "@coago/contracts";
 import type { TripTransaction } from "../trips/store";
 export class MembershipError extends Error {}
 export async function approvedMember(tx: TripTransaction, user: string) {
@@ -20,6 +24,16 @@ export async function approvedTrip(
   key?: string,
 ) {
   await approvedMember(tx, user);
+  const [license] = await tx
+    .select()
+    .from(driverLicenses)
+    .where(eq(driverLicenses.userId, user))
+    .for("share");
+  if (
+    license?.status !== "approved" ||
+    license.expiresOn < bangkokDate(input.departureAt)
+  )
+    throw new MembershipError("driver_license_required");
   if (!input.safety) throw new MembershipError("vehicle_and_route_required");
   if (
     input.safety.distanceSource === "road" &&

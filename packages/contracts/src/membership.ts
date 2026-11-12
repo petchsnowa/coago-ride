@@ -102,3 +102,33 @@ export const homeSummarySchema = z.object({
     .nullable(),
 });
 export type HomeSummary = z.infer<typeof homeSummarySchema>;
+
+export const driverLicenseInputSchema = z
+  .object({
+    licenseNumber: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z0-9 -]{5,30}$/, "กรุณากรอกเลขใบขับขี่ให้ถูกต้อง"),
+    licenseClass: z.enum(["private_car", "public_car"]),
+    country: z.string().regex(/^[A-Z]{2}$/),
+    expiresOn: z
+      .string()
+      .regex(/^20\d{2}-\d{2}-\d{2}$/)
+      .refine(
+        (v) =>
+          !isNaN(Date.parse(v + "T00:00:00Z")) &&
+          new Date(v + "T00:00:00Z").toISOString().slice(0, 10) === v,
+        "วันที่หมดอายุไม่ถูกต้อง",
+      ),
+    photoId: z.uuid(),
+    consentVersion: z.literal(consentVersion),
+    version: z.number().int().nonnegative(),
+  })
+  .strict();
+export type DriverLicenseInput = z.infer<typeof driverLicenseInputSchema>;
+export function bangkokDate(value: Date | string = new Date()) {
+  return new Date(new Date(value).getTime() + 7 * 3600000)
+    .toISOString()
+    .slice(0, 10);
+}

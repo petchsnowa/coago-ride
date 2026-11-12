@@ -219,7 +219,13 @@ try {
     /member_verification_required/,
   );
   const ids: Record<string, string> = {};
-  for (const purpose of ["portrait", "document", "vehicle", "plate"]) {
+  for (const purpose of [
+    "portrait",
+    "document",
+    "vehicle",
+    "plate",
+    "license",
+  ]) {
     const bytes = Buffer.from(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
         "base64",
@@ -277,6 +283,47 @@ try {
         decision: "approved",
         version: 1,
         reason: "Fixture manual review",
+      })
+    ).status,
+    200,
+  );
+  await assert.rejects(
+    trips.create(user.id, { ...draft, requestId: crypto.randomUUID() }, now),
+    /driver_license_required/,
+  );
+  const license = {
+    licenseNumber: "TEST-LICENSE-1234",
+    licenseClass: "private_car",
+    country: "TH",
+    expiresOn: "2099-12-31",
+    photoId: ids.license,
+    consentVersion: "2026-11-11",
+    version: 0,
+  };
+  assert.equal(
+    (
+      await own("/api/membership/license", "PUT", {
+        ...license,
+        expiresOn: "2020-01-01",
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (await own("/api/membership/license", "PUT", license)).status,
+    200,
+  );
+  assert(
+    !(
+      await client.query("SELECT data FROM driver_licenses")
+    ).rows[0].data.includes(license.licenseNumber),
+  );
+  assert.equal(
+    (
+      await staffCall(`/api/membership/review/licenses/${user.id}`, "PUT", {
+        decision: "approved",
+        version: 1,
+        reason: "Fixture license review",
       })
     ).status,
     200,
