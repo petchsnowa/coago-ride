@@ -1,0 +1,13 @@
+# Verification: community safety and journeys
+
+Local validation on 2026-11-12; production has not been migrated or deployed by this change.
+
+- 270 unit/API/UI/config checks pass, including strict wanted/license contracts, Bangkok expiry date, canonical/private guards, disabled messaging, finite quota, retry response handling and non-sensitive notification payload.
+- 72 existing browser cases pass on desktop/mobile. Six new cases pass for approved-member wanted create/cancel, journey stage/incident report/dialog/map-on-demand, LINE consent disabled before configuration, theme tokens and horizontal layout.
+- Local Postgres/PostGIS suites pass: readiness/migration history/spatial constraints, auth, trip CRUD, discovery/public activity, requests, accept/refund/cancel races, decisions upgrade, production bootstrap, Hyperdrive Workers, production Worker runtime, Root/Admin permissions and upgrade, member safety/R2 runtime, community DB/API, general Workers and auth Workers. No actual LINE messages or Neon verification emails were sent; external auth/messaging responses are mocked.
+- Community integration uses its own disposable `_test` database. It checks approval/ownership/idempotency/active-post limit, privacy of public DTO and destination aggregates, session/CSRF API boundaries, participant-only journey access, legal transitions/incident handling, valid driver license and vehicle gates, started-journey seat locks, outbox events in the same database transaction, concurrent budget reservations, stable retry body/key, accepted duplicate acknowledgement, maximum attempts and opt-out cancellation. Trip cancellation notifies passengers once without a spurious driver alert.
+- Upgrade tests cover seven-, nine-, and eleven-migration histories to twelve; existing encrypted member records/settings are preserved, rerun is idempotent, altered history is rejected, failure rolls back and existing-data approval guard remains. Historical migrations0000–0010 are untouched.
+- `pnpm db:generate` reports no schema drift. Repeated guarded local migrations pass. New schema:12 migrations /19 application tables.
+- Lint, TypeScript and browser/Workers production builds pass. Existing Leaflet static/dynamic import warning remains; the route map is only rendered after opening the map view, but the shared Leaflet code is also used by trip setup.
+
+Limits: actual Cloudflare custom domain, production R2 binding, email delivery, real license approval, OA friendship/provider pairing/quota and live LINE delivery require owner-side acceptance after merge/schema upgrade/maintenance deploy. Messaging remains disabled by default. Driver reports are self-reported states and recorded pickup/dropoff points, not GPS tracking. LIFF and Rich Menu are deferred.

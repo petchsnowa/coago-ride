@@ -51,6 +51,7 @@ jobs:
       - run: pnpm test:production-worker:runtime
       - run: pnpm test:admin:integration
       - run: pnpm test:admin:upgrade
+      - run: pnpm test:community:integration
       - run: pnpm test:members:integration
       - run: pnpm test:workers
       - run: pnpm test:auth:workers

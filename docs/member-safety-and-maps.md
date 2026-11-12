@@ -57,3 +57,5 @@ APIเซ็น road quote ด้วยกุญแจที่ deriveแยก�
 ยืนยันด้วยบัญชีทดสอบสองคน: สมัคร→pending→review→approved, แก้→pending, cross-user file403/404, รถapproved/capacity, routeจริง/manualfallback/quoteexpiry, fixedpriceแม้คนไม่เต็ม, request/accept/refund, adminstaffcookieไม่ให้LINEยึดสิทธิ์. ไม่ใช้เอกสารจริงใน automated tests. ยังไม่ได้migrate/deploy/ส่งอีเมล/อัปโหลดR2จริงจากงานพัฒนา
 
 ค่าใช้จ่ายตรวจ11พ.ย.2026: [R2 pricing](https://developers.cloudflare.com/r2/pricing/) Free Standard10GB-month,1MClassA/10MClassB; เกินมีค่าบริการ ไม่เปิด paid หรือผูกบัตรโดยอัตโนมัติ. [ORS FAQ](https://giscience.github.io/openrouteservice/frequently-asked-questions) และ dashboardเป็นแหล่งquota keyจริง. Workers/Hyperdrive/Neonมีquotaแยก ไม่รับรองว่าแอปฟรีทุกปริมาณผู้ใช้
+
+รุ่นถัดไปเพิ่มใบขับขี่/ประกาศหารถ/สถานะเดินทาง/คิวLINE: schema ปัจจุบัน12migrations/19tables ให้ใช้ [runbookล่าสุด](community-safety-and-journeys.md) แทนจำนวนรุ่น0010ข้างต้น.

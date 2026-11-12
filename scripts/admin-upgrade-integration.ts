@@ -68,8 +68,8 @@ try {
   );
   const result = await upgradeAdminSchema(client, { allowExistingData: true });
   assert.equal(result.status, "upgraded");
-  assert.equal(result.migrations, 11);
-  assert.equal(result.appTables, 13);
+  assert.equal(result.migrations, 12);
+  assert.equal(result.appTables, 19);
   assert.equal(result.settings.service_open, false);
   assert.equal(result.settings.registrations_open, false);
   assert.equal(
@@ -122,7 +122,7 @@ try {
     allowExistingData: true,
   });
   assert.equal(nineResult.status, "upgraded");
-  assert.equal(nineResult.migrations, 11);
+  assert.equal(nineResult.migrations, 12);
   assert.equal(nineResult.settings.service_open, true);
   assert.equal(nineResult.settings.version, 4);
   assert.equal(
@@ -130,8 +130,45 @@ try {
       .role,
     "user",
   );
+  const eleven = join(folder, "eleven");
+  await cp("packages/db/migrations", eleven, { recursive: true });
+  const elevenJournal = JSON.parse(
+    await readFile(join(eleven, "meta/_journal.json"), "utf8"),
+  );
+  elevenJournal.entries = elevenJournal.entries.filter(
+    (e: { idx: number }) => e.idx < 11,
+  );
+  await writeFile(
+    join(eleven, "meta/_journal.json"),
+    JSON.stringify(elevenJournal),
+  );
+  await client.query(
+    "DROP SCHEMA public CASCADE; DROP SCHEMA drizzle CASCADE; CREATE SCHEMA public",
+  );
+  await migrate(drizzle(client), { migrationsFolder: eleven });
+  await client.query(
+    "INSERT INTO users(id,display_name) VALUES($1,'Existing approved member')",
+    [id],
+  );
+  await client.query(
+    "INSERT INTO member_profiles(user_id,data,document_last4,status) VALUES($1,'preserved-ciphertext','1234','approved')",
+    [id],
+  );
+  const latest = await upgradeAdminSchema(client, { allowExistingData: true });
+  assert.equal(latest.migrations, 12);
+  assert.equal(latest.appTables, 19);
+  assert.equal(
+    (
+      await client.query(
+        "SELECT data,status FROM member_profiles WHERE user_id=$1",
+        [id],
+      )
+    ).rows[0].data,
+    "preserved-ciphertext",
+  );
+  assert.equal((await upgradeAdminSchema(client)).status, "already_upgraded");
   console.log(
-    "PASS Root Admin upgrade: seven/nine-to-ten migration, preserved users, default closed, failure transaction rollback, existing-data review guard, idempotency preserves settings and history drift rejection",
+    "PASS Root Admin upgrade: seven/nine/eleven-to-twelve migration, preserved users, default closed, failure transaction rollback, existing-data review guard, idempotency preserves settings and history drift rejection",
   );
 } finally {
   await client.end().catch(() => {});

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   pgTable,
+  date,
   jsonb,
   text,
   timestamp,
@@ -78,7 +79,7 @@ export const adminAudit = pgTable(
     check("admin_audit_reason", sql`length(${t.reason})<=300`),
     check(
       "admin_audit_action",
-      sql`${t.action} in ('root_bootstrap','user_suspended','user_activated','trip_cancelled','settings_changed','admin_granted','admin_revoked','profile_reviewed','vehicle_reviewed','private_document_viewed')`,
+      sql`${t.action} in ('root_bootstrap','user_suspended','user_activated','trip_cancelled','settings_changed','admin_granted','admin_revoked','profile_reviewed','license_reviewed','vehicle_reviewed','private_document_viewed')`,
     ),
     check(
       "admin_audit_target",
@@ -299,7 +300,7 @@ export const privateUploads = pgTable(
   (t) => [
     check(
       "upload_purpose",
-      sql`${t.purpose} in ('portrait','document','vehicle','plate')`,
+      sql`${t.purpose} in ('portrait','document','vehicle','plate','license')`,
     ),
     check("upload_size", sql`${t.size}>0 and ${t.size}<=2097152`),
   ],
@@ -331,5 +332,170 @@ export const vehicles = pgTable(
       sql`${t.status} in ('pending','approved','rejected')`,
     ),
     check("vehicle_version", sql`${t.version}>0`),
+  ],
+);
+
+export const driverLicenses = pgTable(
+  "driver_licenses",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id),
+    data: text("data").notNull(),
+    documentLast4: text("document_last4").notNull(),
+    expiresOn: date("expires_on").notNull(),
+    status: text("status").notNull().default("pending"),
+    version: integer("version").notNull().default(1),
+    reviewReason: text("review_reason"),
+    reviewedBy: uuid("reviewed_by").references(() => users.id),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check(
+      "driver_license_status",
+      sql`${t.status} in ('pending','approved','rejected')`,
+    ),
+    check("driver_license_version", sql`${t.version}>0`),
+  ],
+);
+export const wantedPosts = pgTable(
+  "wanted_posts",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    requestId: uuid("request_id").notNull(),
+    payloadHash: text("payload_hash").notNull(),
+    originProvince: text("origin_province").notNull(),
+    destinationProvince: text("destination_province").notNull(),
+    departureFrom: timestamp("departure_from", {
+      withTimezone: true,
+    }).notNull(),
+    departureUntil: timestamp("departure_until", {
+      withTimezone: true,
+    }).notNull(),
+    seats: integer("seats").notNull(),
+    budgetSatang: integer("budget_satang"),
+    status: text("status").notNull().default("active"),
+    version: integer("version").notNull().default(1),
+    cancellationReason: text("cancellation_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("wanted_owner_request_idx").on(t.ownerId, t.requestId),
+    index("wanted_public_route_idx")
+      .on(t.originProvince, t.destinationProvince, t.departureUntil)
+      .where(sql`${t.status}='active'`),
+    check("wanted_seats", sql`${t.seats} between 1 and 8`),
+    check(
+      "wanted_budget",
+      sql`${t.budgetSatang} is null or ${t.budgetSatang} between 0 and 1000000`,
+    ),
+    check(
+      "wanted_dates",
+      sql`${t.departureUntil}>=${t.departureFrom} and ${t.departureUntil}<=${t.departureFrom}+interval '24 hours'`,
+    ),
+    check("wanted_route", sql`${t.originProvince}<>${t.destinationProvince}`),
+    check("wanted_status", sql`${t.status} in ('active','cancelled')`),
+    check("wanted_version", sql`${t.version}>0`),
+  ],
+);
+export const journeys = pgTable(
+  "journeys",
+  {
+    tripId: uuid("trip_id")
+      .primaryKey()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("not_started"),
+    issue: boolean("issue").notNull().default(false),
+    version: integer("version").notNull().default(1),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check(
+      "journey_status",
+      sql`${t.status} in ('not_started','ready','at_pickup','travelling','arrived','completed')`,
+    ),
+    check("journey_version", sql`${t.version}>0`),
+  ],
+);
+export const journeyEvents = pgTable(
+  "journey_events",
+  {
+    id: uuid("id").primaryKey(),
+    tripId: uuid("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    requestId: uuid("request_id").notNull(),
+    payloadHash: text("payload_hash").notNull(),
+    status: text("status").notNull(),
+    issue: boolean("issue").notNull(),
+    note: text("note").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("journey_actor_request_idx").on(t.actorId, t.requestId),
+    index("journey_history_idx").on(t.tripId, t.createdAt, t.id),
+  ],
+);
+export const notificationPreferences = pgTable("notification_preferences", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  enabled: boolean("enabled").notNull().default(false),
+  consentVersion: text("consent_version").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+export const notificationOutbox = pgTable(
+  "notification_outbox",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    dedupeKey: text("dedupe_key").notNull().unique(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tripId: uuid("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    relatedId: uuid("related_id").notNull(),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    retryKey: uuid("retry_key").notNull().defaultRandom(),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    firstAttemptAt: timestamp("first_attempt_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    errorCode: text("error_code"),
+  },
+  (t) => [
+    index("notification_due_idx").on(t.status, t.nextAttemptAt),
+    check(
+      "notification_status",
+      sql`${t.status} in ('pending','processing','sent','skipped','failed')`,
+    ),
+    check("notification_attempts", sql`${t.attempts} between 0 and 3`),
   ],
 );

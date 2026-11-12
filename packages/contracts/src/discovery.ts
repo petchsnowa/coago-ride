@@ -90,8 +90,21 @@ export const publicActivitySchema = z
         vehicles: activityCount,
         seats: activityCount,
         pendingRequests: activityCount,
+        wantedPosts: activityCount.optional(),
       })
       .strict(),
+    wantedDestinations: z
+      .array(
+        z
+          .object({
+            province: z.enum(provinces),
+            posts: activityCount,
+            seats: activityCount,
+          })
+          .strict(),
+      )
+      .max(77)
+      .optional(),
     destinations: z
       .array(
         z

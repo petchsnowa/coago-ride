@@ -113,6 +113,7 @@ export default function UserHeader({
           >
             การเดินทางของฉัน
           </a>
+          <a href="#wanted-board">ประกาศหารถ</a>
           <a href="/account">ข้อมูลสมาชิก</a>
           <a href="/account#my-vehicles">รถของฉัน</a>
           <details className="top-menu-tool" name="user-header-tools">

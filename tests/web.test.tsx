@@ -24,6 +24,7 @@ it("shows loading, failure and successful retry", async () => {
     )
     .mockResolvedValueOnce(new Response(JSON.stringify({ status: "ready" })));
   vi.stubGlobal("fetch", (url: string, init: RequestInit) =>
+    url.includes("/api/discovery/wanted") ||
     url.includes("/api/discovery/trips/upcoming") ||
     url.includes("/api/discovery/trips/activity")
       ? Promise.resolve(
@@ -63,6 +64,7 @@ it("shows loading, failure and successful retry", async () => {
 it("times out and re-enables retry", async () => {
   vi.useFakeTimers();
   vi.stubGlobal("fetch", (_url: unknown, init: RequestInit) =>
+    String(_url).includes("/api/discovery/wanted") ||
     String(_url).includes("/api/discovery/trips/upcoming") ||
     String(_url).includes("/api/discovery/trips/activity")
       ? Promise.resolve(

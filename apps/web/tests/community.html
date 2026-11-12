@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="th">
+  <meta charset="UTF-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Community integration test</title>
+  <div id="root"></div>
+  <script type="module">
+    import React from "react";
+    import { createRoot } from "react-dom/client";
+    import WantedPanel from "../src/WantedPanel.tsx";
+    import JourneyButton from "../src/JourneyButton.tsx";
+    import NotificationPreferences from "../src/NotificationPreferences.tsx";
+    import "../src/style.css";
+    const account = {
+      user: {
+        id: "11111111-1111-4111-8111-111111111111",
+        displayName: "Synthetic member",
+      },
+      csrfToken: "a".repeat(64),
+      loginAvailable: true,
+    };
+    createRoot(document.getElementById("root")).render(
+      React.createElement(
+        "main",
+        null,
+        React.createElement(WantedPanel, {
+          account,
+          onChange: () => {},
+          onSearch: () => {},
+        }),
+        React.createElement(JourneyButton, {
+          tripId: "22222222-2222-4222-8222-222222222222",
+          csrf: account.csrfToken,
+        }),
+        React.createElement(NotificationPreferences, {
+          csrf: account.csrfToken,
+        }),
+      ),
+    );
+  </script>
+</html>

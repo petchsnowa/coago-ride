@@ -1,3 +1,4 @@
+import JourneyButton from "./JourneyButton";
 import { useLocationAccess } from "./LocationAccess";
 import TravelSetup from "./TravelSetup";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -56,6 +57,8 @@ const messages: Record<string, string> = {
   shares_below_offered_seats: "จำนวนส่วนที่หารต้องไม่น้อยกว่าที่นั่งที่เปิดรับ",
   road_quote_expired:
     "ผลคำนวณถนนหมดอายุหรือเปลี่ยนแล้ว กรุณาคำนวณระยะทางตามถนนใหม่",
+  driver_license_required:
+    "ผู้ขับต้องมีใบขับขี่ที่อนุมัติและไม่หมดอายุก่อนวันเดินทาง กรุณาตรวจที่ข้อมูลสมาชิก",
   member_verification_required: "กรุณาส่งข้อมูลสมาชิกและรออนุมัติก่อนใช้งาน",
   vehicle_verification_required: "รถต้องผ่านการตรวจอนุมัติก่อนประกาศเที่ยว",
   service_unavailable: "ระบบยังไม่พร้อม กรุณาลองอีกครั้ง",
@@ -632,6 +635,7 @@ function OwnedTrips({
                       : "เปิดประกาศ"}
                 </span>
               </div>
+              <JourneyButton tripId={trip.id} csrf={csrfToken} />
               <p className="trip-time">
                 {displayTime(trip.departureAt)} น. (เวลาไทย)
               </p>

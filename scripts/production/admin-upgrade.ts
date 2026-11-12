@@ -10,7 +10,7 @@ export async function upgradeAdminSchema(
 ) {
   const folder = options.folder ?? "packages/db/migrations",
     expected = readMigrationFiles({ migrationsFolder: folder });
-  if (expected.length !== currentMigrationCount || currentMigrationCount !== 11)
+  if (expected.length !== currentMigrationCount || currentMigrationCount !== 12)
     throw new Error("ADMIN_MIGRATION_SET_CHANGED");
   if (
     !(await client.query("SELECT pg_try_advisory_lock(207417,6) AS locked"))
@@ -24,7 +24,7 @@ export async function upgradeAdminSchema(
       )
     ).rows;
     if (
-      ![7, 9, 10, 11].includes(rows.length) ||
+      ![7, 9, 10, 11, 12].includes(rows.length) ||
       rows.some(
         (r, i) =>
           r.hash !== expected[i].hash ||
