@@ -39,7 +39,7 @@ const status = (s?: string) =>
 export default function MemberAccount() {
   const [account, setAccount] = useState<AuthState | null>(null);
   return (
-    <main>
+    <main className="member-account-page">
       <nav>
         <a href="/">COAGO</a>
         <a href="/">กลับหน้าผู้ใช้</a>
@@ -216,7 +216,7 @@ function AccountForm({ csrf }: { csrf: string }) {
   );
   return (
     <>
-      <section>
+      <section className="form-card">
         <h2>สมัครและยืนยันตัวตน</h2>
         <p>
           สถานะ: {status(profileStatus)} {profileReason}
@@ -313,7 +313,7 @@ function AccountForm({ csrf }: { csrf: string }) {
           ส่งข้อมูลสมาชิกเพื่อตรวจสอบ
         </button>
       </section>
-      <section>
+      <section className="form-card" id="my-vehicles">
         <h2>รถของฉัน</h2>
         <p>
           บันทึกครั้งเดียวแล้วเลือกใช้ตอนประกาศเที่ยว แก้ไขรถแล้วต้องรอตรวจใหม่

@@ -239,7 +239,7 @@ export default function SearchTrips({
       <div className="trip-board-heading">
         <div>
           <p className="eyebrow">เส้นทางเดียวกัน ไปด้วยกันได้</p>
-          <h1 id="search-title">รายการเที่ยวเดินทาง</h1>
+          <h2 id="search-title">รายการเที่ยวเดินทาง</h2>
           <p>
             ดูสถานะ เส้นทาง และรายละเอียดเที่ยวได้ทันที · คำขอยังต้องรอตอบรับ
           </p>

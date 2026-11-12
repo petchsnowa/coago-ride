@@ -157,3 +157,7 @@ pg ตั้ง connection timeout 1.5 วินาที, server statement time
 ขอบเขตใหม่: [สมาชิก/รถ/แผนที่/ราคาคงที่](docs/member-safety-and-maps.md), [Root/Admin email-password](docs/admin-email-auth.md). `/account` สำหรับข้อมูลสมาชิก LINE, `/admin` สำหรับ staff, `/root` เฉพาะRoot. ข้อมูลต้องอนุมัติก่อนประกาศ/ส่ง/ตอบรับคำขอใหม่; cancel/refundเดิมยังได้
 
 `pnpm test:members:integration` ใช้disposablePostgres, mockedNeon และlocalWorkers/R2 ไม่ส่งอีเมลหรือใช้เอกสารจริง. Migration0010รวม11migrations/13appTables. ห้ามใช้legacybootstrap0000–0006กับschemaปัจจุบัน; ใช้guardedupgradeworkflowตามrunbook. ไม่เปิดบริการ/paid planจากmerge
+
+### หน้าแรกและตำแหน่ง
+
+หน้าแรกแบบแดชบอร์ดและรูปแบบฟอร์มร่วมกันทุกหน้า รวม Root/Admin พร้อมภาษาไทยมีหัว อ่านรายละเอียดและข้อจำกัดการตรวจตำแหน่งก่อนบันทึกเที่ยว/ส่งคำขอใน [หน้าแรกและตำแหน่ง](docs/home-dashboard-and-location.md). รอบนี้ไม่มี schema migration ใหม่.

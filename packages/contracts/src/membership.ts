@@ -85,3 +85,20 @@ export const vehicleBrands: Record<string, string[]> = {
 };
 export type MemberProfileInput = z.infer<typeof profileInputSchema>;
 export type VehicleInput = z.infer<typeof vehicleInputSchema>;
+
+const homeReviewStatus = z.enum(["pending", "approved", "rejected"]);
+export const homeSummarySchema = z.object({
+  member: z
+    .object({ status: homeReviewStatus, portraitId: z.uuid() })
+    .nullable(),
+  vehicle: z
+    .object({
+      brand: z.string(),
+      model: z.string(),
+      color: z.string(),
+      status: homeReviewStatus,
+      photoId: z.uuid(),
+    })
+    .nullable(),
+});
+export type HomeSummary = z.infer<typeof homeSummarySchema>;

@@ -1,3 +1,5 @@
+import LocationAccess from "./LocationAccess";
+import HomeDashboard from "./HomeDashboard";
 import MemberStatus from "./MemberStatus";
 import RideRequestsPanel from "./RideRequestsPanel";
 import { lazy, Suspense, useCallback } from "react";
@@ -34,7 +36,16 @@ export default function App() {
       </Suspense>
     );
   }
-  return <UserPage />;
+  return (
+    <LocationAccess
+      required={
+        import.meta.env.VITE_APP_MODE === "production" ||
+        import.meta.env.VITE_LOCATION_REQUIRED === "true"
+      }
+    >
+      <UserPage />
+    </LocationAccess>
+  );
 }
 function UserPage() {
   const production = import.meta.env.VITE_APP_MODE === "production";
@@ -96,7 +107,7 @@ function UserPage() {
     }
   }
   return (
-    <main>
+    <main className="user-home">
       <nav aria-label="ชื่อบริการ">
         <a href="/">
           COAGO<span>ไปด้วยกัน</span>
@@ -110,26 +121,31 @@ function UserPage() {
           </span>
         </div>
       </nav>
-      {site?.serviceOpen ? (
-        <SearchTrips
-          account={account}
-          onRequestChange={requestsChanged}
-          revision={requestRevision}
-        />
-      ) : (
-        <section className="site-closed" aria-labelledby="closed-title">
-          <p className="eyebrow">COAGO</p>
-          <h1 id="closed-title">กำลังเตรียมเปิดบริการ</h1>
-          <p>เรากำลังตรวจระบบให้พร้อมสำหรับการร่วมเดินทาง</p>
-          <p>ขณะนี้ยังไม่เปิดให้ประกาศเที่ยวหรือส่งคำขอ</p>
-        </section>
-      )}
+      <HomeDashboard account={account} site={site}>
+        <div id="find-trips" />
+        {site?.serviceOpen ? (
+          <SearchTrips
+            account={account}
+            onRequestChange={requestsChanged}
+            revision={requestRevision}
+          />
+        ) : (
+          <section className="site-closed" aria-labelledby="closed-title">
+            <p className="eyebrow">COAGO</p>
+            <h2 id="closed-title">กำลังเตรียมเปิดบริการ</h2>
+            <p>เรากำลังตรวจระบบให้พร้อมสำหรับการร่วมเดินทาง</p>
+            <p>ขณะนี้ยังไม่เปิดให้ประกาศเที่ยวหรือส่งคำขอ</p>
+          </section>
+        )}
+      </HomeDashboard>
+      <div id="my-account" />
       <AuthPanel
         onAccountChange={setAccount}
         serviceOpen={site?.serviceOpen ?? false}
         registrationsOpen={site?.registrationsOpen ?? false}
       />
       {adminEnabled && account?.user && <MemberStatus key={account.user.id} />}
+      <div id="my-journeys" />
       {site?.serviceOpen && (
         <>
           <RideRequestsPanel
@@ -174,6 +190,12 @@ function UserPage() {
           </p>
         </div>
       </section>
+      <nav className="bottom-menu" aria-label="เมนูหลักด้านล่าง">
+        <a href="#dashboard-title">หน้าหลัก</a>
+        <a href="#find-trips">ค้นหาเที่ยว</a>
+        <a href="#my-journeys">การเดินทาง</a>
+        <a href="/account">บัญชีของฉัน</a>
+      </nav>
       <footer>COAGO · ทุกที่นั่งว่าง อาจเป็นการเดินทางของใครอีกคน</footer>
     </main>
   );

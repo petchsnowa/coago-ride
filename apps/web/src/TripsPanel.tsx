@@ -1,3 +1,4 @@
+import { useLocationAccess } from "./LocationAccess";
 import TravelSetup from "./TravelSetup";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -101,6 +102,7 @@ function OwnedTrips({
   csrfToken: string;
   revision: number;
 }) {
+  const location = useLocationAccess();
   const safetyEnabled =
     import.meta.env.VITE_APP_MODE === "production" ||
     import.meta.env.VITE_MEMBER_SAFETY === "true";
@@ -311,6 +313,14 @@ function OwnedTrips({
     if (!parsed.success) return;
     setBusy(true);
     try {
+      if (!(await location.ensure())) {
+        if (active.current)
+          setError(
+            "เปิดใช้ตำแหน่งก่อนบันทึกเที่ยว ตรวจสิทธิ์ตำแหน่งในตั้งค่าเว็บไซต์แล้วลองอีกครั้ง",
+          );
+        return;
+      }
+      if (!active.current) return;
       const body = editing
         ? { ...parsed.data, version: editing.version }
         : { ...parsed.data, requestId };
