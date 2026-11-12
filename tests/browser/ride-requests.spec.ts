@@ -167,11 +167,15 @@ async function prepare(
     });
   });
   await page.goto("/");
+  const menu = page.getByRole("button", { name: /^เมนู/ });
+  if (await menu.isVisible()) await menu.click();
+  await page.locator("summary").filter({ hasText: "บัญชีของฉัน" }).click();
   await expect(
     page
       .getByText("สวัสดี Passenger tester", { exact: true })
       .or(page.getByText("สวัสดี Driver tester", { exact: true })),
   ).toBeVisible();
+  await page.locator("summary").filter({ hasText: "บัญชีของฉัน" }).click();
   await page
     .locator(".upcoming-card")
     .getByRole("button", { name: /^ดูรายละเอียดเที่ยว/ })
@@ -211,6 +215,13 @@ test("passenger requests one seat, sees pending after reload, cancels and logs o
   await page
     .getByRole("region", { name: "คำขอร่วมเดินทาง", exact: true })
     .screenshot({ path: test.info().outputPath("request-list.png") });
+  const menu = page.getByRole("button", { name: /^เมนู/ });
+  if (
+    (await menu.isVisible()) &&
+    (await menu.getAttribute("aria-expanded")) === "false"
+  )
+    await menu.click();
+  await page.locator("summary").filter({ hasText: "บัญชีของฉัน" }).click();
   await page.getByRole("button", { name: "ออกจากระบบ", exact: true }).click();
   await expect(page.locator(".ride-request-card")).toHaveCount(0);
   await expect(

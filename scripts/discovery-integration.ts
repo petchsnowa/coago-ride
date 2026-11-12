@@ -1,3 +1,5 @@
+import { publicActivity } from "../apps/api/src/discovery/activity";
+import { postgresRideRequestStore } from "../apps/api/src/requests/store";
 import { decodeDiscoveryCursor } from "../apps/api/src/discovery/cursor";
 import assert from "node:assert/strict";
 import { withDatabase } from "@coago/db";
@@ -7,6 +9,8 @@ import { tripDraftSchema, type TripSearch } from "@coago/contracts";
 import { testDatabaseUrl } from "./database";
 const url = testDatabaseUrl(),
   owner = crypto.randomUUID(),
+  passenger = crypto.randomUUID(),
+  passengerTwo = crypto.randomUUID(),
   now = new Date("2030-01-01T00:00:00Z"),
   store = postgresDiscoveryStore(url),
   writer = postgresTripStore(url);
@@ -38,6 +42,7 @@ async function create(departureAt: string, extra = {}) {
   ).trip;
 }
 try {
+  const baseline = await publicActivity(url, false, now);
   await withDatabase(url, async (_db, c) => {
     await c.query("INSERT INTO users(id,display_name) VALUES ($1,$2)", [
       owner,
@@ -135,6 +140,99 @@ try {
     (await store.search({ ...input, date: "2030-01-05" }, now)).trips.length,
     0,
   );
+  // One saved vehicle can have multiple trips; count it once globally.
+  const car = crypto.randomUUID();
+  const safety = {
+    vehicleId: car,
+    vehicleVersion: 1,
+    origin: { lat: 13.7, lng: 100.5 },
+    destination: { lat: 18.7, lng: 98.9 },
+    distanceSource: "manual",
+    cost: {
+      distanceKm: 100,
+      fuelSatangPerKm: 300,
+      operationsSatangPerKm: 0,
+      extraSatang: 0,
+      shares: 3,
+    },
+  };
+  await create("2030-01-09T03:30:00.000Z", { safety });
+  const secondCarTrip = await create("2030-01-10T03:30:00.000Z", {
+    safety,
+    destinationProvince: "ขอนแก่น",
+  });
+  await withDatabase(url, async (_db, c) => {
+    await c.query("INSERT INTO users(id,display_name) VALUES($1,$2)", [
+      passenger,
+      "Private passenger",
+    ]);
+  });
+  await postgresRideRequestStore(url).create(
+    passenger,
+    { tripId: before.id, requestId: crypto.randomUUID() },
+    now,
+  );
+  await withDatabase(url, async (_db, c) => {
+    await c.query("INSERT INTO users(id,display_name) VALUES($1,$2)", [
+      passengerTwo,
+      "Another private passenger",
+    ]);
+  });
+  await postgresRideRequestStore(url).create(
+    passengerTwo,
+    { tripId: before.id, requestId: crypto.randomUUID() },
+    now,
+  );
+  const activity = await publicActivity(url, false, now);
+  assert.equal(activity.totals.trips, baseline.totals.trips + 27);
+  assert.equal(activity.totals.vehicles, baseline.totals.vehicles + 1);
+  assert.equal(activity.totals.seats, baseline.totals.seats + 81);
+  assert.equal(
+    activity.totals.pendingRequests,
+    baseline.totals.pendingRequests + 2,
+  );
+  assert(
+    activity.destinations.some(
+      (d) => d.province === "เชียงใหม่" && d.pendingRequests >= 1,
+    ),
+  );
+  const serialized = JSON.stringify(activity);
+  for (const secret of [
+    owner,
+    passenger,
+    "Private passenger",
+    "Private identity",
+    car,
+  ])
+    assert(!serialized.includes(secret));
+  await withDatabase(url, async (_db, c) => {
+    await c.query("UPDATE users SET status='suspended' WHERE id=$1", [
+      passenger,
+    ]);
+  });
+  assert.equal(
+    (await publicActivity(url, false, now)).totals.pendingRequests,
+    baseline.totals.pendingRequests + 1,
+  );
+  await withDatabase(url, async (_db, c) => {
+    await c.query("UPDATE trips SET seats_booked=seats_offered WHERE id=$1", [
+      secondCarTrip.id,
+    ]);
+  });
+  const afterFull = await publicActivity(url, false, now);
+  assert.equal(afterFull.totals.trips, activity.totals.trips - 1);
+  assert.equal(afterFull.totals.seats, activity.totals.seats - 3);
+  assert.equal(afterFull.totals.vehicles, activity.totals.vehicles);
+  assert(
+    !afterFull.destinations.some((d) => d.nextTripId === secondCarTrip.id),
+  );
+  await withDatabase(url, async (_db, c) => {
+    await c.query("UPDATE users SET status='suspended' WHERE id=$1", [owner]);
+  });
+  assert.deepEqual(
+    (await publicActivity(url, false, now)).totals,
+    baseline.totals,
+  );
   const index = await withDatabase(
     url,
     async (_db, c) =>
@@ -146,10 +244,12 @@ try {
   );
   assert(index?.includes("WHERE (status = 'active'::text)"));
   console.log(
-    "PASS discovery DB: upcoming six/time/status/projection, Thai midnight boundaries, route/date/status/expiry, 20+3 keyset with equal times, public projection, stale detail and partial index",
+    "PASS discovery DB: upcoming six/time/status/projection, Thai midnight boundaries, route/date/status/expiry, 20+3 keyset with equal times, public projection, stale detail/partial index, activity distinct cars/seats/pending aggregates/privacy/full/suspended exclusions",
   );
 } finally {
   await withDatabase(url, async (_db, c) => {
-    await c.query("DELETE FROM users WHERE id=$1", [owner]);
+    await c.query("DELETE FROM users WHERE id=ANY($1::uuid[])", [
+      [owner, passenger, passengerTwo],
+    ]);
   });
 }

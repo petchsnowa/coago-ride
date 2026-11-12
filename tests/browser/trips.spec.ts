@@ -182,13 +182,16 @@ test("logout clears the private trip list and form", async ({ page }) => {
   await page.route("**/api/auth/logout", (route) =>
     route.fulfill({ status: 204 }),
   );
+  const toggle = page.getByRole("button", { name: /^เมนู/ });
+  if (await toggle.isVisible()) await toggle.click();
+  await page.locator("summary").filter({ hasText: "บัญชีของฉัน" }).click();
   await page.getByRole("button", { name: "ออกจากระบบ", exact: true }).click();
   await expect(page.locator(".trip-card")).toHaveCount(0);
   await expect(
     page.getByRole("form", { name: "ประกาศเที่ยวใหม่" }),
   ).toHaveCount(0);
   await expect(
-    page.getByText("เข้าสู่ระบบด้านบนเพื่อประกาศและจัดการเที่ยวของคุณ"),
+    page.getByRole("link", { name: "เข้าสู่ระบบด้วย LINE", exact: true }),
   ).toBeVisible();
 });
 

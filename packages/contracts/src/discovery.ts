@@ -79,3 +79,34 @@ export function bangkokDayRange(date: string) {
   );
   return { start, end: new Date(start.getTime() + 86400000) };
 }
+
+const activityCount = z.number().int().nonnegative();
+export const publicActivitySchema = z
+  .object({
+    updatedAt: z.string().datetime(),
+    totals: z
+      .object({
+        trips: activityCount,
+        vehicles: activityCount,
+        seats: activityCount,
+        pendingRequests: activityCount,
+      })
+      .strict(),
+    destinations: z
+      .array(
+        z
+          .object({
+            province: z.enum(provinces),
+            trips: activityCount,
+            vehicles: activityCount,
+            seats: activityCount,
+            pendingRequests: activityCount,
+            nextTripId: z.uuid(),
+            nextDepartureAt: z.string().datetime(),
+          })
+          .strict(),
+      )
+      .max(77),
+  })
+  .strict();
+export type PublicActivity = z.infer<typeof publicActivitySchema>;

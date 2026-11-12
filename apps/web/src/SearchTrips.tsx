@@ -35,10 +35,12 @@ export default function SearchTrips({
   account = null,
   onRequestChange = () => {},
   revision = 0,
+  selection,
 }: {
   account?: AuthState | null;
   onRequestChange?: () => void;
   revision?: number;
+  selection?: { id: string; revision: number };
 } = {}) {
   const [form, setForm] = useState({
     originProvince: "",
@@ -200,6 +202,9 @@ export default function SearchTrips({
       if (current === detailSequence.current) setDetailBusy(false);
     }
   }
+  useEffect(() => {
+    if (selection) void openDetail(selection.id);
+  }, [selection]);
   function closeDetail() {
     ++detailSequence.current;
     detailRequest.current?.abort();
