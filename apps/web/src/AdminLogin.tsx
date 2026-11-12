@@ -106,7 +106,7 @@ export default function AdminLogin({
     }
   }
   return (
-    <section className="account">
+    <section className="account staff-login">
       <h2>เข้าสู่ระบบผู้ดูแล</h2>
       <p>
         ใช้อีเมลเป็นชื่อผู้ใช้ พร้อมรหัสผ่านและอีเมลที่ยืนยันแล้ว ไม่ใช้ LINE

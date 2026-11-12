@@ -13,7 +13,7 @@ test("home and readiness interaction", async ({ page }) => {
   );
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "รายการเที่ยวเดินทาง",
+    "วันนี้จะไปที่ไหน",
   );
   await page.getByRole("button", { name: "ตรวจสถานะระบบ" }).click();
   await expect(

@@ -205,3 +205,7 @@ Phase 1 รวมเข้า main แล้ว งานรอบ LINE Login �
 ## สมาชิก/รถ/แผนที่ และ staff email
 
 เจ้าของยืนยันmanualapprovalก่อนใช้งานและราคาคงที่ตามจำนวนส่วนที่กำหนด เพิ่มprofile/evidence/vehicles/privateencryptedR2, mapจุดรับส่ง+road/manualdistance+costsnapshot. Root/Adminต้องใช้email+password+verifiedemail ไม่ใช่LINE สมาชิกLINEแยกcookie. ROOT_ADMIN_EMAILเจ้าของตั้งSecretเอง ยังไม่ได้เปิดR2. ทำตามdocs/member-safety-and-maps.mdและadmin-email-auth.md ไม่สร้างบัญชี/ผูกบัตร/ส่งอีเมล/deploy/migrate/DNS productionอัตโนมัติ. ห้ามใช้เอกสารจริงในtests.
+
+## หน้าแรกแดชบอร์ดและรูปแบบฟอร์ม
+
+เจ้าของขอหน้าแรกตามwireframe: เมนู6ช่อง ค้นหาเที่ยว รูปรถ/รูปสมาชิกของตน และเมนูหลักล่าง. ก่อนบันทึกเที่ยวหรือส่งคำขอใหม่ต้องตรวจตำแหน่งโดยผู้ใช้อนุญาตผ่านbrowser; อ่านข้อมูล/ยกเลิกยังเข้าถึงได้ ไม่ติดตามGPSสด ไม่เก็บพิกัดปัจจุบันและไม่อ้างว่าbrowserpermissionคือหลักฐานฝั่งserver. จัดฟอร์มทุกหน้ารวมstaffให้เป็นระเบียบและใช้ภาษาไทยมีหัวใกล้ภาพตัวอย่าง. ทำPRใหม่ ตรวจมือถือ/desktop ไม่deploy/migrate/DNSอัตโนมัติ.

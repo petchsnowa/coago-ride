@@ -296,6 +296,20 @@ try {
     (await own(`/api/membership/vehicles/${vehicleId}`, "PUT", vehicle)).status,
     200,
   );
+  const home = await own("/api/membership/home");
+  assert.equal(home.status, 200);
+  assert.match(home.headers.get("Cache-Control") ?? "", /no-store/);
+  assert.deepEqual(await home.json(), {
+    member: { status: "approved", portraitId: ids.portrait },
+    vehicle: {
+      brand: "Toyota",
+      model: "Yaris",
+      color: "White",
+      status: "pending",
+      photoId: ids.vehicle,
+    },
+  });
+  assert.equal((await request("/api/membership/home")).status, 401);
   await assert.rejects(
     trips.create(user.id, { ...draft, requestId: crypto.randomUUID() }, now),
     /vehicle_and_route_required/,

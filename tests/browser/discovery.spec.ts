@@ -222,16 +222,19 @@ test("header shows real upcoming statuses and summaries without searching", asyn
   );
   await page.reload();
   const card = page.locator(".upcoming-card");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "รายการเที่ยวเดินทาง",
-  );
+  await expect(
+    page.getByRole("heading", { name: "รายการเที่ยวเดินทาง", exact: true }),
+  ).toHaveText("รายการเที่ยวเดินทาง");
   await expect(card).toContainText("เปิดประกาศ");
   await expect(card).toContainText("กรุงเทพมหานคร");
   await expect(card).toContainText("10:30");
   await expect(card).toContainText("3 ที่นั่ง");
   await expect(card).toContainText("100.25 บาท/คน");
   const box = await card.boundingBox();
-  expect(box!.y).toBeLessThan(700);
+  const dashboard = await page
+    .getByRole("region", { name: "วันนี้จะไปที่ไหน" })
+    .boundingBox();
+  expect(box!.y).toBeGreaterThan(dashboard!.y + dashboard!.height);
   await card.getByRole("button", { name: /^ดูรายละเอียดเที่ยว/ }).click();
   await expect(page.getByRole("dialog")).toContainText("สถานีต้นทาง");
   await page.screenshot({ path: test.info().outputPath("header-detail.png") });

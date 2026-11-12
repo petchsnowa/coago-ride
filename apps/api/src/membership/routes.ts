@@ -251,6 +251,52 @@ export function membershipRoutes() {
       );
     });
   });
+  // Homepage DTO deliberately omits identity numbers, phone, plate and evidence documents.
+  app.get("/home", async (c) =>
+    withDatabase(databaseUrl(c.env), async (db) => {
+      const userId = owner(c);
+      const [profile] = await db
+        .select()
+        .from(memberProfiles)
+        .where(eq(memberProfiles.userId, userId));
+      const [vehicle] = await db
+        .select()
+        .from(vehicles)
+        .where(eq(vehicles.ownerId, userId))
+        .orderBy(desc(vehicles.updatedAt), desc(vehicles.id))
+        .limit(1);
+      const key =
+        profile || vehicle ? await dataKey(c.env.MEMBER_DATA_KEY) : null;
+      const memberData = profile
+        ? await decode<{ portraitId: string }>(
+            key!,
+            profile.data,
+            `profile:${userId}`,
+          )
+        : null;
+      const carData = vehicle
+        ? await decode<{ photoId: string }>(
+            key!,
+            vehicle.data,
+            `vehicle:${vehicle.id}:${userId}`,
+          )
+        : null;
+      return c.json({
+        member: profile
+          ? { status: profile.status, portraitId: memberData!.portraitId }
+          : null,
+        vehicle: vehicle
+          ? {
+              brand: vehicle.brand,
+              model: vehicle.model,
+              color: vehicle.color,
+              status: vehicle.status,
+              photoId: carData!.photoId,
+            }
+          : null,
+      });
+    }),
+  );
   app.get("/profile", async (c) =>
     withDatabase(databaseUrl(c.env), async (db) => {
       const [row] = await db

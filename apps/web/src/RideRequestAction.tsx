@@ -1,3 +1,4 @@
+import { useLocationAccess } from "./LocationAccess";
 import { useEffect, useRef, useState } from "react";
 import {
   rideRequestContextSchema,
@@ -38,6 +39,7 @@ function AuthenticatedRequest({
   tripId: string;
   onChange: () => void;
 }) {
+  const location = useLocationAccess();
   const [context, setContext] = useState<RideRequestContext | null>(null),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false),
@@ -85,6 +87,14 @@ function AuthenticatedRequest({
     setBusy(true);
     setError("");
     try {
+      if (!(await location.ensure())) {
+        if (active.current)
+          setError(
+            "เปิดใช้ตำแหน่งก่อนส่งคำขอ ตรวจสิทธิ์ตำแหน่งในตั้งค่าเว็บไซต์แล้วลองอีกครั้ง",
+          );
+        return;
+      }
+      if (!active.current) return;
       const result = rideRequestResponseSchema.parse(
         await rideApi("/api/ride-requests", controller.current!.signal, {
           method: "POST",
